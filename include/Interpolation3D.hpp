@@ -18,14 +18,13 @@
 #include "ThreeVector.hpp"
 #include "LaserTrack.hpp"
 #include "Matrix3x3.hpp"
-// #include "Laser.hpp"
 
 #ifndef INTERPOLATION3D_H
 #define INTERPOLATION3D_H
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel InterpKernel;
 typedef CGAL::Triangulation_3<InterpKernel> Triangulation;
-typedef CGAL::Triangulation_vertex_base_with_info_3<unsigned, InterpKernel> Vb;
+typedef CGAL::Triangulation_vertex_base_with_info_3<std::pair<unsigned long, unsigned long>, InterpKernel> Vb;
 typedef CGAL::Triangulation_data_structure_3<Vb> Tds;
 // Use the Fast_location tag. Default or Compact_location works too.
 // typedef CGAL::Delaunay_triangulation_3<InterpKernel, Tds, CGAL::Fast_location > Delaunay;

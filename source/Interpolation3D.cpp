@@ -107,11 +107,18 @@ bool PairSortFunction(std::pair<unsigned,float> left_pair, std::pair<unsigned,fl
 
 Delaunay TrackMesher(const std::vector<LaserTrack>& LaserTracks)
 { 
-  std::vector<Point> Points;
-  for(unsigned track = 0; track < LaserTracks.size(); track++)
+  std::vector< std::pair<Point,std::pair<unsigned long, unsigned long>> > Points;
+  
+  for(unsigned long track = 0; track < LaserTracks.size(); track++)
   {
-    for(unsigned sample = 0; sample < LaserTracks[track].GetNumberOfSamples(); sample++)
-    Points.push_back( Point(LaserTracks[track].GetSamplePosition(sample)[0],LaserTracks[track].GetSamplePosition(sample)[1],LaserTracks[track].GetSamplePosition(sample)[2]) );
+    for(unsigned long sample = 0; sample < LaserTracks[track].GetNumberOfSamples(); sample++)
+    {
+        Point SamplePoint = Point(LaserTracks[track].GetSamplePosition(sample)[0],LaserTracks[track].GetSamplePosition(sample)[1],LaserTracks[track].GetSamplePosition(sample)[2]);
+        
+        std::pair<unsigned long, unsigned long> SamplePointIndex = std::make_pair(track,sample);
+        
+        Points.push_back( std::make_pair(SamplePoint,SamplePointIndex) );
+    }
   }
   
   Delaunay DelaunayMesh(Points.begin(), Points.end());
@@ -150,20 +157,9 @@ ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTracks, c
   Delaunay::Cell_handle Cell =  Mesh.locate(VectorToPoint(Location));
   
   ThreeVector<float> VertexPoint;
-  for(unsigned vertex_no = 0; vertex_no < 4; vertex_no++)
+  for(unsigned vertex_no = 0; vertex_no < PointIndex.size(); vertex_no++)
   {
-    VertexPoint = PointToVector( Cell->vertex(vertex_no)->point() );
-//     std::cout << Cell->vertex(vertex_no)->point()[0] << " " << Cell->vertex(vertex_no)->point()[1] << " " << Cell->vertex(vertex_no)->point()[2] << std::endl;
-    for(unsigned long track = 0; track < LaserTracks.size(); track++)
-    {
-      for(unsigned long sample = 0; sample < LaserTracks[track].GetNumberOfSamples(); sample++)
-      {
-	if(VertexPoint == LaserTracks[track].GetSamplePosition(sample))
-	{
-	  PointIndex[vertex_no] = std::make_pair(track,sample);
-	}
-      }
-    }
+    PointIndex[vertex_no] = Cell->vertex(vertex_no)->info();
   }
   
   Matrix3x3 TransMatrix = {{0,0,0},{0,0,0},{0,0,0}};
@@ -173,9 +169,7 @@ ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTracks, c
     for(unsigned column = 0; column < 3; column++)
     {
       TransMatrix[row][column] = LaserTracks[PointIndex[column].first].GetSamplePosition(PointIndex[column].second)[row] - LaserTracks[PointIndex.back().first].GetSamplePosition(PointIndex.back().second)[row];
-//       std::cout << TransMatrix[row][column] << " ";
     }
-//     std::cout << std::endl;
   }
 
   Location -= LaserTracks[PointIndex.back().first].GetSamplePosition(PointIndex.back().second);
@@ -244,18 +238,7 @@ void InterpolateTrack(LaserTrack& Track, const std::vector<LaserTrack>& LaserTra
   
     for(unsigned vertex_no = 0; vertex_no < 4; vertex_no++)  
     {
-      VertexPoint = PointToVector(Cell->vertex(vertex_no)->point());
-//       std::cout << Cell->vertex(vertex_no)->point()[0] << " " << Cell->vertex(vertex_no)->point()[1] << " " << Cell->vertex(vertex_no)->point()[2] << std::endl;
-      for(unsigned long track = 0; track < LaserTracks.size(); track++)
-      {
-	for(unsigned long sample = 0; sample < LaserTracks[track].GetNumberOfSamples(); sample++)
-	{
-	  if(VertexPoint == LaserTracks[track].GetSamplePosition(sample))
-	  {
-	    PointIndex[vertex_no] = std::make_pair(track,sample);
-	  }
-	}
-      }
+      PointIndex[vertex_no] = Cell->vertex(vertex_no)->info();
     }
     
     Matrix3x3 TransMatrix = {{0,0,0},{0,0,0},{0,0,0}};
