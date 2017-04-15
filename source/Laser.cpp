@@ -32,11 +32,15 @@ LaserTrack Laser::GetLastTrack()
   return LaserTrackSet.back();
 }
 
+LaserTrack Laser::GetFirstTrack()
+{
+  return LaserTrackSet.front();
+}
+
 long unsigned int Laser::GetNumberOfTracks() const
 {
   return LaserTrackSet.size();
 }
-
 
 std::vector<LaserTrack> Laser::GetTrackSet() const
 {

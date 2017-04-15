@@ -33,6 +33,7 @@ public:
   void AppendTrack(const LaserTrack&);
   LaserTrack GetTrack(const unsigned long int&);
   LaserTrack GetLastTrack();
+  LaserTrack GetFirstTrack();
   
   void SortTracks();
   unsigned long int GetNumberOfTracks() const;

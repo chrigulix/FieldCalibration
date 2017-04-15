@@ -14,12 +14,12 @@ public:
   TPCVolumeHandler(const std::array<float,3>&, const std::array<float,3>&, const std::array<int,3>&);
   TPCVolumeHandler(float[3],float[3],int[3]);
   
-  std::vector<ThreeVector<float>> GetNormalVectors();
-  std::vector<ThreeVector<float>> GetNormVectorOffset();
+  std::vector<ThreeVector<float>> GetNormalVectors() const;
+  std::vector<ThreeVector<float>> GetNormVectorOffset() const;
   
-  ThreeVector<float> GetDetectorSize();
-  ThreeVector<float> GetDetectorOffset();
-  ThreeVector<int> GetDetectorResolution();
+  ThreeVector<float> GetDetectorSize() const;
+  ThreeVector<float> GetDetectorOffset() const;
+  ThreeVector<int> GetDetectorResolution() const;
   
 private:
   ThreeVector<float> DetectorSize;

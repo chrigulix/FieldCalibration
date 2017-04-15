@@ -6,19 +6,15 @@ LaserTrack::LaserTrack()
 
 }
 
-LaserTrack::LaserTrack(std::array<float,2>& Angles, ThreeVector<float>& Position, TPCVolumeHandler& TPCVolume) : TrackAngles(Angles) , LaserPosition(Position)
+LaserTrack::LaserTrack(std::array<float,2>& Angles, ThreeVector<float>& Position, const TPCVolumeHandler& TPCVolume) : TrackAngles(Angles) , LaserPosition(Position)
 {  
   FindBoundaries(TPCVolume);
 }
 
 
 // This Constructor initializes the laser track vectors and fills them according to the angles and segments
-LaserTrack::LaserTrack(const unsigned int NSegments, std::array<float,2>& Angles, ThreeVector<float>& Position, TPCVolumeHandler& TPCVolume) : NumberOfTracksegments(NSegments) , TrackAngles(Angles) , LaserPosition(Position)
+LaserTrack::LaserTrack(const unsigned int NSegments, std::array<float,2>& Angles, ThreeVector<float>& Position, const TPCVolumeHandler& TPCVolume) : NumberOfTracksegments(NSegments) , TrackAngles(Angles) , LaserPosition(Position)
 {
-  // Convert degrees to radian
-  for(unsigned angle = 0; angle<TrackAngles.size(); angle++)
-    TrackAngles[angle] *= M_PI/180.0;
-
 //   LaserTrue.resize(NumberOfTracksegments+1);
   LaserReco.resize(NumberOfTracksegments+1);
   LaserCorrection.resize(NumberOfTracksegments+1);
@@ -55,7 +51,7 @@ void LaserTrack::FillTrack()
   }
 }
 
-void LaserTrack::FindBoundaries(TPCVolumeHandler& TPCVolume)
+void LaserTrack::FindBoundaries(const TPCVolumeHandler& TPCVolume)
 {
   ThreeVector<float> Poynting = GetPoyntingVector();
   
@@ -101,10 +97,12 @@ void LaserTrack::FindBoundaries(TPCVolumeHandler& TPCVolume)
   if(!BoundaryParameter.size())
   {
 //     LaserTrue.clear();
-    LaserReco.clear();
+//     LaserReco.clear();
     std::cout << "ERROR: Laser beam with start position = (" << LaserPosition[0] << ", " << LaserPosition[1] << ", " << LaserPosition[2] << ") "
-	      << "and track angles (theta, phi) = (" << TrackAngles[0] << ", " << TrackAngles[1] << ") "
+	      << "and track angles (theta, phi) = (" << TrackAngles[0]/M_PI*180.0 << ", " << TrackAngles[1]/M_PI*180.0 << ") "
 	      << "is missing the chamber!" << std::endl;
+    EntryPoint = {0.0,0.0,0.0};
+    ExitPoint = {0.0,0.0,0.0};
     return;
   }
   else if(BoundaryParameter.size() < 2) // If the laser beam is produced in the volume add the laser position and the parameter as boundary conditions
@@ -133,7 +131,7 @@ void LaserTrack::FindBoundaries(TPCVolumeHandler& TPCVolume)
 }
 
 
-void LaserTrack::DistortTrack(std::string MapFileName, TPCVolumeHandler& TPCVolume)
+void LaserTrack::DistortTrack(std::string MapFileName, const TPCVolumeHandler& TPCVolume)
 {
   float epsilon_abs = 1e-6;
   
@@ -240,7 +238,11 @@ ThreeVector<float> LaserTrack::GetExitPoint()
   return ExitPoint;
 }
 
-
+void LaserTrack::AppendSample(ThreeVector<float>& SamplePosition, ThreeVector<float>& SampleCorrection)
+{
+  LaserReco.push_back(SamplePosition);
+  LaserCorrection.push_back(SampleCorrection);
+}
 
 void LaserTrack::AppendSample(ThreeVector<float>& SamplePosition)
 {
@@ -254,7 +256,13 @@ void LaserTrack::AppendSample(float SamplePos_x, float SamplePos_y, float Sample
   LaserCorrection.push_back(ThreeVector<float>(0.0,0.0,0.0));
 }
 
-void LaserTrack::DistortTracks(std::vector<LaserTrack>& LaserTracks, const std::string& MapFileName, TPCVolumeHandler& TPCVolume)
+void LaserTrack::AppendSample(float SamplePos_x, float SamplePos_y, float SamplePos_z, float SampleCorr_x, float SampleCorr_y, float SampleCorr_z)
+{
+  LaserReco.push_back( ThreeVector<float>(SamplePos_x,SamplePos_y,SamplePos_z) );
+  LaserCorrection.push_back(ThreeVector<float>(SampleCorr_x,SampleCorr_y,SampleCorr_z));
+}
+
+void LaserTrack::DistortTracks(std::vector<LaserTrack>& LaserTracks, const std::string& MapFileName, const TPCVolumeHandler& TPCVolume)
 {
   float epsilon_abs = 1e-6;
   

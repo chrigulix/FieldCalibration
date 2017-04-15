@@ -34,15 +34,15 @@ private:
   std::vector<ThreeVector<float>> LaserCorrection;
   
   void FillTrack();
-  void FindBoundaries(TPCVolumeHandler&);
+  void FindBoundaries(const TPCVolumeHandler&);
   
 public:
   LaserTrack();
-  LaserTrack(std::array<float,2>&, ThreeVector<float>&, TPCVolumeHandler&);
-  LaserTrack(const unsigned int,std::array<float,2>&, ThreeVector<float>&, TPCVolumeHandler&);
+  LaserTrack(std::array<float,2>&, ThreeVector<float>&, const TPCVolumeHandler&);
+  LaserTrack(const unsigned int,std::array<float,2>&, ThreeVector<float>&, const TPCVolumeHandler&);
   
   ThreeVector<float> GetPoyntingVector();
-  void DistortTrack(std::string, TPCVolumeHandler&);
+  void DistortTrack(std::string, const TPCVolumeHandler&);
   void CorrectTrack();
   void AddToCorrection(ThreeVector<float>&, unsigned long);
   
@@ -53,10 +53,12 @@ public:
   ThreeVector<float> GetCorrection(const unsigned int&) const;
   ThreeVector<float> GetEntryPoint();
   ThreeVector<float> GetExitPoint();
+  void AppendSample(ThreeVector<float>& SamplePosition, ThreeVector<float>& SampleCorrection);
   void AppendSample(ThreeVector<float>&);
+  void AppendSample(float SamplePos_x, float SamplePos_y, float SamplePos_z, float SampleCorr_x, float SampleCorr_y, float SampleCorr_z);
   void AppendSample(float,float,float);
   
-  static void DistortTracks(std::vector<LaserTrack>&, const std::string&, TPCVolumeHandler&);  
+  static void DistortTracks(std::vector<LaserTrack>&, const std::string&, const TPCVolumeHandler&);  
 };
 
 #endif

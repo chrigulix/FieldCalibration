@@ -29,14 +29,14 @@ TPCVolumeHandler::TPCVolumeHandler(float TPCSize[3], float TPCOffset[3], int TPC
   CalcNormal(DetectorSize, DetectorOffset);
 }
 
-std::vector<ThreeVector<float>> TPCVolumeHandler::GetNormalVectors()
+std::vector<ThreeVector<float>> TPCVolumeHandler::GetNormalVectors() const
 {
-  return this->NormalVector;
+  return NormalVector;
 }
 
-std::vector< ThreeVector< float > > TPCVolumeHandler::GetNormVectorOffset()
+std::vector< ThreeVector< float > > TPCVolumeHandler::GetNormVectorOffset() const
 {
-  return this->NormalVectorOffSet;
+  return NormalVectorOffSet;
 }
 
 
@@ -80,19 +80,19 @@ void TPCVolumeHandler::CalcNormal(ThreeVector<float>& TPCSize, ThreeVector<float
 //   }
 }
 
-ThreeVector<float> TPCVolumeHandler::GetDetectorSize()
+ThreeVector<float> TPCVolumeHandler::GetDetectorSize() const
 {
-  return this->DetectorSize;
+  return DetectorSize;
 }
 
-ThreeVector<float> TPCVolumeHandler::GetDetectorOffset()
+ThreeVector<float> TPCVolumeHandler::GetDetectorOffset() const
 {
-  return this->DetectorOffset;
+  return DetectorOffset;
 }
 
-ThreeVector<int> TPCVolumeHandler::GetDetectorResolution()
+ThreeVector<int> TPCVolumeHandler::GetDetectorResolution() const
 {
-  return this->DetectorResolution;
+  return DetectorResolution;
 }
 
 

@@ -131,7 +131,7 @@ Point VectorToPoint(ThreeVector<float>& InputVector)
   return point_res;
 }
 
-ThreeVector<float> InterpolateCGAL(std::vector<LaserTrack>& LaserTracks, Delaunay& Mesh, ThreeVector<float> Location)
+ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTracks, const Delaunay& Mesh, ThreeVector<float> Location)
 {
 //   std::cout << "Start CGAL" << std::endl;
   

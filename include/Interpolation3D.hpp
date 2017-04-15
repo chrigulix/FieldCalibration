@@ -18,6 +18,7 @@
 #include "ThreeVector.hpp"
 #include "LaserTrack.hpp"
 #include "Matrix3x3.hpp"
+// #include "Laser.hpp"
 
 #ifndef INTERPOLATION3D_H
 #define INTERPOLATION3D_H
@@ -41,7 +42,7 @@ Delaunay TrackMesher(const std::vector<LaserTrack>&);
 Point VectorToPoint(ThreeVector<float>&);
 ThreeVector<float> PointToVector(Point&);
 
-ThreeVector<float> InterpolateCGAL(std::vector<LaserTrack>&, Delaunay&, ThreeVector<float>);
+ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>&, const Delaunay&, ThreeVector<float>);
 void InterpolateTrack(LaserTrack& ,const std::vector<LaserTrack>& , const Delaunay&);
 
 #endif
