@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include <TVector3.h>
+
 // Temporary
 #include <typeinfo>
 #include <iostream>
@@ -23,6 +25,7 @@ public:
   ThreeVector(ValueType[3]);
   ThreeVector(ValueType,ValueType,ValueType);
   ThreeVector(std::initializer_list<ValueType>); // Construction by {x,y,z}
+  ThreeVector(const TVector3& InputVector);
   
   // += and -= operators add entries to each other
   ThreeVector<ValueType>& operator+=(const ThreeVector<ValueType>&);

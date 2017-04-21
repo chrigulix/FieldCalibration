@@ -15,6 +15,7 @@
 
 #include "ThreeVector.hpp"
 #include "TPCVolumeHandler.hpp"
+#include <TVector3.h>
 
 #ifndef LASERTRACK_H
 #define LASERTRACK_H
@@ -38,6 +39,9 @@ private:
   
 public:
   LaserTrack();
+  
+  // Constructor with reco data input with entry point, exit point, and reco track 
+  LaserTrack(const TVector3& InEntryPoint, const TVector3& InExitPoint, const std::vector<TVector3>& RecoTrack);
   LaserTrack(std::array<float,2>&, ThreeVector<float>&, const TPCVolumeHandler&);
   LaserTrack(const unsigned int,std::array<float,2>&, ThreeVector<float>&, const TPCVolumeHandler&);
   

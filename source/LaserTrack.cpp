@@ -6,6 +6,24 @@ LaserTrack::LaserTrack()
 
 }
 
+// Constructor used for reconstructed laser data
+LaserTrack::LaserTrack(const TVector3& InEntryPoint, const TVector3& InExitPoint, const std::vector<TVector3>& RecoTrack)
+{
+    // Resever enogh space for the LaserReco vector. Can be important if you go to the Memory limit
+    LaserReco.reserve(RecoTrack.size());
+    
+    // Store entry and exit point
+    EntryPoint = ThreeVector<float>(InEntryPoint);
+    ExitPoint = ThreeVector<float>(InExitPoint);
+    
+    // Loop over all RecoTrack points
+    for(const auto & TrackPoint : RecoTrack)
+    {
+        // Fill TrackPoints as vectors into the LaserReco vector
+        LaserReco.push_back(ThreeVector<float>(TrackPoint));
+    }
+}
+
 LaserTrack::LaserTrack(std::array<float,2>& Angles, ThreeVector<float>& Position, const TPCVolumeHandler& TPCVolume) : TrackAngles(Angles) , LaserPosition(Position)
 {  
   FindBoundaries(TPCVolume);

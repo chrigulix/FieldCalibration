@@ -29,6 +29,12 @@ ThreeVector<ValueType>::ThreeVector(std::initializer_list<ValueType> input_list)
 }
 
 template<typename ValueType>
+ThreeVector<ValueType>::ThreeVector(const TVector3& InputVector)
+{
+    ThreeVector(InputVector.X(),InputVector.Y(),InputVector.Z());
+}
+
+template<typename ValueType>
 ThreeVector<ValueType>& ThreeVector<ValueType>::operator+=(const ThreeVector<ValueType>& vec_right)
 {
   for (unsigned coord = 0; coord < this->vec.size(); coord++)
