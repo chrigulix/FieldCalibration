@@ -92,7 +92,18 @@ int main(int argc, char** argv)
     
     // Read data and store it to a Laser object
     std::cout << "Reading data..." << std::endl;
-    ReadRecoTracks(argc,argv);
+    Laser LaserTrackSet = ReadRecoTracks(argc,argv);
+    
+    // Calculate track displacement
+    std::cout << "Find track displacements.. " << std::endl;
+    LaserTrackSet.CorrectTrackSet();
+    
+    // Create delaunay mesh
+    std::cout << "Generate mesh..." << std::endl;
+    Delaunay TrackMesh = TrackMesher(LaserTrackSet.GetTrackSet());
+    
+    // 
+    
     
   double HistRange[3][2];
   for (int coord = 0; coord < 3; coord++) for(int minmax = 0; minmax < 2; minmax++)
@@ -107,49 +118,49 @@ int main(int argc, char** argv)
   time_t timer;
   std::time(&timer);
   // Enter Functions here:
-  unsigned BeamBins = 101;
-  std::array<float,2> LaserAngles_1;
-  std::array<float,2> LaserAngles_2;
-  ThreeVector<float> LaserPosition_1 = {1.3,0.0,-0.21};
-  ThreeVector<float> LaserPosition_2 = {1.3,0.0,Detector.GetDetectorSize().at(2)+ (float)0.21};
+//   unsigned BeamBins = 101;
+//   std::array<float,2> LaserAngles_1;
+//   std::array<float,2> LaserAngles_2;
+//   ThreeVector<float> LaserPosition_1 = {1.3,0.0,-0.21};
+//   ThreeVector<float> LaserPosition_2 = {1.3,0.0,Detector.GetDetectorSize().at(2)+ (float)0.21};
   
 //   std::vector<Laser> LaserTrackSets = ReadMooneyTracks("laserDataSCE.root",Detector);
   
-  std::vector<Laser> LaserTrackSets;
-  LaserTrackSets.resize(2);
+//   std::vector<Laser> LaserTrackSets;
+//   LaserTrackSets.resize(2);
   
 //   std::vector<LaserTrack> TrackVector;
-  for(unsigned theta_entry = 0; theta_entry < BeamBins; theta_entry++)
-  {
-    LaserAngles_1[0] = -45.0 + 90.0/(float)(BeamBins-1)*theta_entry;
-    LaserAngles_2[0] = -45.0 + 90.0/(float)(BeamBins-1)*theta_entry;
-    for(unsigned phi_entry = 0; phi_entry < BeamBins; phi_entry++)
-    {
-      LaserAngles_1[1] = -45 + 90.0/(float)(BeamBins-1)*phi_entry;
-      LaserAngles_2[1] = -225 + 90.0/(float)(BeamBins-1)*phi_entry;
+//   for(unsigned theta_entry = 0; theta_entry < BeamBins; theta_entry++)
+//   {
+//     LaserAngles_1[0] = -45.0 + 90.0/(float)(BeamBins-1)*theta_entry;
+//     LaserAngles_2[0] = -45.0 + 90.0/(float)(BeamBins-1)*theta_entry;
+//     for(unsigned phi_entry = 0; phi_entry < BeamBins; phi_entry++)
+//     {
+//       LaserAngles_1[1] = -45 + 90.0/(float)(BeamBins-1)*phi_entry;
+//       LaserAngles_2[1] = -225 + 90.0/(float)(BeamBins-1)*phi_entry;
       
 //       LaserTrackSets.at(0).AppendTrack(LaserTrack(50, LaserAngles_1, LaserPosition_1, Detector));
 //       LaserTrackSets.at(1).AppendTrack(LaserTrack(50, LaserAngles_2, LaserPosition_2, Detector));
-    }
-  }
+//     }
+//   }
   
-  for(auto& laser : LaserTrackSets)
-  {
+//   for(auto& laser : LaserTrackSets)
+//   {
 //     laser.DistortTrackSet("Field.root",Detector);
-  }
+//   }
   
-  std::vector<Delaunay> MeshVector;
+//   std::vector<Delaunay> MeshVector;
   
-  for(unsigned set_no = 0; set_no < LaserTrackSets.size(); set_no++)
-  {
-    LaserTrackSets.at(set_no).CorrectTrackSet();
-    MeshVector.push_back( TrackMesher(LaserTrackSets.at(set_no).GetTrackSet()) );
-  }
+//   for(unsigned set_no = 0; set_no < LaserTrackSets.size(); set_no++)
+//   {
+//     LaserTrackSets.at(set_no).CorrectTrackSet();
+//     MeshVector.push_back( TrackMesher(LaserTrackSets.at(set_no).GetTrackSet()) );
+//   }
   
 //   LaserTrackSets.front().DrawTrack(1000);
   
-  Laser TempLaser_1 = LaserTrackSets.front();
-  Laser TempLaser_2 = LaserTrackSets.back();
+//   Laser TempLaser_1 = LaserTrackSets.front();
+//   Laser TempLaser_2 = LaserTrackSets.back();
   
 //   std::cout << "Start 1st track interpolation" << std::endl;
 //   LaserInterpThread(LaserTrackSets.front(),TempLaser_2,MeshVector.back());
@@ -174,19 +185,19 @@ int main(int argc, char** argv)
 //     InterpolateTrack(LaserTrackSets.back().GetTrack(track_no),TempLaser.GetTrackSet(),MeshVector.front());
 //   }
   
-  std::cout << "Cleanup!" << std::endl;
+//   std::cout << "Cleanup!" << std::endl;
   
-  MeshVector.clear();
+//   MeshVector.clear();
   
-  std::vector<LaserTrack> TrackVector = LaserTrackSets.back().GetTrackSet();
-  LaserTrackSets.pop_back();
-  TrackVector.insert(TrackVector.begin(),LaserTrackSets.front().begin(), LaserTrackSets.front().end());
-  LaserTrackSets.clear();
+//   std::vector<LaserTrack> TrackVector = LaserTrackSets.back().GetTrackSet();
+//   LaserTrackSets.pop_back();
+//   TrackVector.insert(TrackVector.begin(),LaserTrackSets.front().begin(), LaserTrackSets.front().end());
+//   LaserTrackSets.clear();
   
   
-  std::cout << "Start field map interpolation" << std::endl;
+//   std::cout << "Start field map interpolation" << std::endl;
   
-  Delaunay Mesh = TrackMesher(TrackVector);
+//   Delaunay Mesh = TrackMesher(TrackVector);
 
   
 //   for(unsigned iter = 0; iter < TrackVector.size(); iter++)
@@ -228,7 +239,7 @@ int main(int argc, char** argv)
       for(unsigned zbin = 0; zbin < DetectorResolution[2]; zbin++)
       {
 	Location[2] = DetectorOffset[2]+(HistRange[2][1]-HistRange[2][0])/(float)DetectorResolution[2]*zbin;
-	Displacement.push_back(InterpolateCGAL(TrackVector,Mesh,Location));
+	Displacement.push_back(InterpolateCGAL(LaserTrackSet.GetTrackSet(),TrackMesh,Location));
       }
     }
   }
@@ -247,6 +258,9 @@ int main(int argc, char** argv)
 
 Laser ReadRecoTracks(int argc, char** argv)
 {
+    // Create Laser (collection of laser tracks) this will be the returned object
+    Laser TrackSelection;
+    
     // Initialize read variables, the pointers for more complex data structures 
     // are very important for Root. Rene Brun in hell (do you see what I did there?)
     int EventNumber;
@@ -303,18 +317,25 @@ Laser ReadRecoTracks(int argc, char** argv)
             // of the vector and gives back the new end point of the data set. After that we erase the HistRange
             // between this new end and the real end of the vector
             TrackSamples.erase( std::unique(TrackSamples.begin(),TrackSamples.end()), TrackSamples.end());
+            
+            // Add new track to Laser TrackSelection
+            TrackSelection.AppendTrack(LaserTrack(EntryPoint,ExitPoint,TrackSamples));
         }
-        
-        EntryPoint.Print();
-        for(const auto& sample : TrackSamples) sample.Print();
     }
     else // If the trees don't have the same amount of entries, through error (I know not propper error handling)
     {
         std::cerr << "ERROR: Two TTrees don't have the same ammount of entries!" << std::endl;
     }
     
-//     LaserInfoTree->Print();
-//     RecoTrackTree->Print();
+//     delete LaserInfoTree;
+//     delete RecoTrackTree;
+//     delete pEntryPoint;
+//     delete pExitPoint;
+//     delete pTrackSamples;
+    
+    gDirectory->GetList()->Delete();
+    
+    return TrackSelection;
 }
 
 void LaserInterpThread(Laser& LaserTrackSet, const Laser& InterpolationLaser, const Delaunay& InterpolationMesh)
