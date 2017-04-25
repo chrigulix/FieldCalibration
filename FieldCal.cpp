@@ -83,7 +83,7 @@ int main(int argc, char** argv)
     }
 
     // Coose detector dimensions, coordinate system offset and resolutions
-    ThreeVector<float> DetectorSize = {2.5604,2.325,10.368};
+    ThreeVector<float> DetectorSize = {256.04,232.5,1036.8};
     ThreeVector<float> DetectorOffset = {0.0,-DetectorSize[1]/(float)2.0,0.0};
     ThreeVector<int> DetectorResolution = {26,26,101};
    
