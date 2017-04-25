@@ -52,18 +52,14 @@ void Laser::DistortTrackSet(std::string MapFileName, TPCVolumeHandler& TPCVolume
   LaserTrack::DistortTracks(LaserTrackSet,MapFileName,TPCVolume);
 }
 
+// Applies correction algorithm on all tracks of a laser track set
 void Laser::CorrectTrackSet()
 {
-//   std::cout << LaserTrackSet.at(200).GetCorrection(3).at(0) << " " << LaserTrackSet.at(200).GetCorrection(3).at(1) << " " << LaserTrackSet.at(200).GetCorrection(3).at(2) << std::endl;
-  for(auto& Track : LaserTrackSet)
-  {
-    Track.CorrectTrack();
-  }
-//   for(unsigned long track_no = 0; track_no < LaserTrackSet.size(); track_no++)
-//   {
-//     LaserTrackSet.at(track_no).CorrectTrack();
-//   }
-//   std::cout << LaserTrackSet.at(200).GetCorrection(3).at(0) << " " << LaserTrackSet.at(200).GetCorrection(3).at(1) << " " << LaserTrackSet.at(200).GetCorrection(3).at(2) << std::endl;
+    // Loop over all tracks, correct every single one
+    for(auto& Track : LaserTrackSet)
+    {
+        Track.CorrectTrack();
+    }
 }
 
 void Laser::InterpolateTrackSet(const std::vector<LaserTrack>& LaserTracks, const Delaunay& Mesh)

@@ -1,4 +1,5 @@
 #include "../include/LaserTrack.hpp"
+#include "../../larlite/MyLArLite/UserDev/cosmics/CosmicFinder/sample.h"
 
 // Default constructor
 LaserTrack::LaserTrack()
@@ -22,6 +23,9 @@ LaserTrack::LaserTrack(const TVector3& InEntryPoint, const TVector3& InExitPoint
         // Fill TrackPoints as vectors into the LaserReco vector
         LaserReco.push_back(ThreeVector<float>(TrackPoint));
     }
+    
+    // Initialize LaserCorrection vector
+    LaserCorrection.resize(LaserReco.size());
 }
 
 LaserTrack::LaserTrack(std::array<float,2>& Angles, ThreeVector<float>& Position, const TPCVolumeHandler& TPCVolume) : TrackAngles(Angles) , LaserPosition(Position)
@@ -190,30 +194,32 @@ void LaserTrack::DistortTrack(std::string MapFileName, const TPCVolumeHandler& T
 //   }
 }
 
+// This function calculates the track displacement
 void LaserTrack::CorrectTrack()
 {
-  float TrueTrackPara;
+    // Initialize scaling parameter for point on true laser beam
+    float TrueTrackPara;
   
-//   std::cout << LaserReco.size() << std::endl;
-  
-  if(LaserReco.size() > 2)
-  {
-    // Correct all intermediate track samples with the perpendicularity method
-    for(unsigned sample_no = 1; sample_no < LaserReco.size(); sample_no++)
+    // Only correct intermediate points if there are 3 or more track points
+    if(LaserReco.size() > 2)
     {
-      TrueTrackPara = ThreeVector<float>::DotProduct(LaserReco[sample_no-1]-LaserReco[sample_no+1],LaserReco[sample_no]-EntryPoint)
-		    / ThreeVector<float>::DotProduct(LaserReco[sample_no-1]-LaserReco[sample_no+1],ExitPoint-EntryPoint);
-
-      LaserCorrection[sample_no] = EntryPoint - LaserReco[sample_no] + TrueTrackPara*(ExitPoint-EntryPoint);
+        // Correct all intermediate track samples with the perpendicularity method
+        for(unsigned sample_no = 1; sample_no < LaserReco.size()-1; sample_no++)
+        {
+            TrueTrackPara = ThreeVector<float>::DotProduct(LaserReco[sample_no-1]-LaserReco[sample_no+1],LaserReco[sample_no]-EntryPoint)
+		          / ThreeVector<float>::DotProduct(LaserReco[sample_no-1]-LaserReco[sample_no+1],ExitPoint-EntryPoint);
+                    
+            LaserCorrection[sample_no] = EntryPoint - LaserReco[sample_no] + TrueTrackPara*(ExitPoint-EntryPoint);
+        }
+    } // end if
+    
+    // If there are two and more points, shift entry and exit point to true position 
+    if(LaserReco.size() > 1)
+    {
+        // Correct first and last track samples
+        LaserCorrection.front() =  EntryPoint - LaserReco.front();
+        LaserCorrection.back() =  ExitPoint - LaserReco.back();
     }
-  }
-  
-  if(LaserReco.size() > 1)
-  {
-    // Correct first and last track samples
-    LaserCorrection.front() =  EntryPoint - LaserReco.front();
-    LaserCorrection.back() =  ExitPoint - LaserReco.back();
-  }
 }
 
 void LaserTrack::AddToCorrection(ThreeVector<float>& AdditionVector, unsigned long sample)

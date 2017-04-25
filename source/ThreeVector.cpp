@@ -28,10 +28,11 @@ ThreeVector<ValueType>::ThreeVector(std::initializer_list<ValueType> input_list)
   std::copy(input_list.begin(), input_list.end(), this->vec.begin());
 }
 
+// From three variable input constructor inherited
 template<typename ValueType>
-ThreeVector<ValueType>::ThreeVector(const TVector3& InputVector)
+ThreeVector<ValueType>::ThreeVector(const TVector3& InputVector) : ThreeVector(InputVector.X(),InputVector.Y(),InputVector.Z())
 {
-    ThreeVector(InputVector.X(),InputVector.Y(),InputVector.Z());
+    
 }
 
 template<typename ValueType>
@@ -124,6 +125,12 @@ template<typename ValueType>
 unsigned long ThreeVector<ValueType>::size()
 {
   return vec.size();
+}
+
+template<typename ValueType>
+void ThreeVector<ValueType>::print()
+{
+    std::cout << "(x,y,z) = (" << vec[0] << "," << vec[1] << "," << vec[2] << ")" << std::endl;
 }
 
 template<typename ValueType>

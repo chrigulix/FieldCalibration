@@ -40,6 +40,7 @@ public:
   ValueType& at(const unsigned long);
   ValueType& operator[](const unsigned long);
   unsigned long size();
+  void print();
   
   // Friend functions for + and - operators derived from += and -=
   template<typename ValueType_Op>

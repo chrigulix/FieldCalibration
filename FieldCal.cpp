@@ -327,13 +327,14 @@ Laser ReadRecoTracks(int argc, char** argv)
         std::cerr << "ERROR: Two TTrees don't have the same ammount of entries!" << std::endl;
     }
     
-//     delete LaserInfoTree;
-//     delete RecoTrackTree;
 //     delete pEntryPoint;
 //     delete pExitPoint;
 //     delete pTrackSamples;
     
     gDirectory->GetList()->Delete();
+    
+    delete LaserInfoTree;
+    delete RecoTrackTree;
     
     return TrackSelection;
 }
