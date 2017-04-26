@@ -78,7 +78,7 @@ int main(int argc, char** argv)
     // If there are to few input arguments abord
     if(argc < 2)
     {
-        std::cerr << "ERROR: Too fiew arguments, use ./LaserCal <input file names>" << std::endl;
+        std::cerr << "ERROR: Too few arguments, use ./LaserCal <input file names>" << std::endl;
         return -1;
     }
 
