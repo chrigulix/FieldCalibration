@@ -53,12 +53,22 @@ void Laser::DistortTrackSet(std::string MapFileName, TPCVolumeHandler& TPCVolume
 }
 
 // Applies correction algorithm on all tracks of a laser track set
-void Laser::CorrectTrackSet()
+void Laser::CalcDisplacement()
 {
-    // Loop over all tracks, correct every single one
+    // Loop over all tracks, and calculate displacement
     for(auto& Track : LaserTrackSet)
     {
-        Track.CorrectTrack();
+        Track.CalcDisplacement();
+    }
+}
+
+// Add displacement to the reco position. This is important for generating a displacement map in non-distorted detector coordinates
+void Laser::AddDisplToReco()
+{
+    // Loop over all tracks, and calculate displacement
+    for(auto& Track : LaserTrackSet)
+    {
+        Track.AddDisplToReco();
     }
 }
 
@@ -93,18 +103,14 @@ void Laser::DrawTrack(const long unsigned int& TrackNumber)
 			     LaserTrackSet.at(TrackNumber).GetSamplePosition(sample_no).at(1),
 			     LaserTrackSet.at(TrackNumber).GetSamplePosition(sample_no).at(2));
     CorrectedTrack->SetPoint(sample_no,
-			     LaserTrackSet.at(TrackNumber).GetSamplePosition(sample_no).at(0)+LaserTrackSet.at(TrackNumber).GetCorrection(sample_no).at(0),
-			     LaserTrackSet.at(TrackNumber).GetSamplePosition(sample_no).at(1)+LaserTrackSet.at(TrackNumber).GetCorrection(sample_no).at(1),
-			     LaserTrackSet.at(TrackNumber).GetSamplePosition(sample_no).at(2)+LaserTrackSet.at(TrackNumber).GetCorrection(sample_no).at(2));
+			     LaserTrackSet.at(TrackNumber).GetSamplePosition(sample_no).at(0)+LaserTrackSet.at(TrackNumber).GetDisplacement(sample_no).at(0),
+			     LaserTrackSet.at(TrackNumber).GetSamplePosition(sample_no).at(1)+LaserTrackSet.at(TrackNumber).GetDisplacement(sample_no).at(1),
+			     LaserTrackSet.at(TrackNumber).GetSamplePosition(sample_no).at(2)+LaserTrackSet.at(TrackNumber).GetDisplacement(sample_no).at(2));
   }
   
   TrueTrack->SetPoint(0,LaserTrackSet.at(TrackNumber).GetEntryPoint().at(0),LaserTrackSet.at(TrackNumber).GetEntryPoint().at(1),LaserTrackSet.at(TrackNumber).GetEntryPoint().at(2));
   TrueTrack->SetPoint(1,LaserTrackSet.at(TrackNumber).GetExitPoint().at(0),LaserTrackSet.at(TrackNumber).GetExitPoint().at(1),LaserTrackSet.at(TrackNumber).GetExitPoint().at(2));
   
-//   std::cout << LaserTrackSet.at(TrackNumber).GetEntryPoint().at(0) << " " << LaserTrackSet.at(TrackNumber).GetEntryPoint().at(1) << " " << LaserTrackSet.at(TrackNumber).GetEntryPoint().at(2) << std::endl;
-//   std::cout << LaserTrackSet.at(TrackNumber).GetSamplePosition(0).at(0)+LaserTrackSet.at(TrackNumber).GetCorrection(0).at(0) << " " << 
-// 	       LaserTrackSet.at(TrackNumber).GetSamplePosition(0).at(1)+LaserTrackSet.at(TrackNumber).GetCorrection(0).at(1) << " " << 
-// 	       LaserTrackSet.at(TrackNumber).GetSamplePosition(0).at(2)+LaserTrackSet.at(TrackNumber).GetCorrection(0).at(2) << std::endl;
   
   std::string PictureName = "Track_" + std::to_string(TrackNumber);
   

@@ -143,12 +143,12 @@ void Draw()
     }
     for (int coord = 0; coord < 3; coord++) ProjectionXZ[coord] -> SetStats(0);
     
-    ProjectionXZ[0] -> SetMaximum(20);
-    ProjectionXZ[0] -> SetMinimum(-20);
-    ProjectionXZ[1] -> SetMaximum(20);
-    ProjectionXZ[1] -> SetMinimum(-20);
-    ProjectionXZ[2] -> SetMaximum(20);
-    ProjectionXZ[2] -> SetMinimum(-20);
+    ProjectionXZ[0] -> SetMaximum(40);
+    ProjectionXZ[0] -> SetMinimum(-40);
+    ProjectionXZ[1] -> SetMaximum(40);
+    ProjectionXZ[1] -> SetMinimum(-40);
+    ProjectionXZ[2] -> SetMaximum(40);
+    ProjectionXZ[2] -> SetMinimum(-40);
     
     TCanvas * C1 = new TCanvas("Reco Map X","Reco Map X",1000,500);
     ProjectionXZ[0] -> Draw("colz");

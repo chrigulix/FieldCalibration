@@ -89,8 +89,8 @@ void TPCVolumeHandler::CalcMapCoordExtreme()
     // Loop over coordinates 
     for(unsigned int coord = 0; coord < MapCoordMaximum.size(); coord++)
     {
-        MapCoordMinimum[coord] = DetectorOffset[coord] - (DetectorSize[coord] + 1e-7) / (static_cast<float>(DetectorResolution[coord])-1.0)/2.0;
-        MapCoordMaximum[coord] = DetectorOffset[coord] + (DetectorSize[coord] + 1e-7) / (static_cast<float>(DetectorResolution[coord])-1.0);
+        MapCoordMinimum[coord] = DetectorOffset[coord] - (DetectorSize[coord]) / (static_cast<float>(DetectorResolution[coord])-1.0)/2.0;
+        MapCoordMaximum[coord] = DetectorOffset[coord] + (DetectorSize[coord]) / (static_cast<float>(DetectorResolution[coord])-1.0);
     }
 }
 

@@ -214,8 +214,8 @@ ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet,
     // If the function is still alive, loop over all barycentric coordinates
     for(unsigned vertex_no = 0; vertex_no < 4; vertex_no++)
     {
-        // Use the barycentric coordinates as a weight for the corrections stored at this vertex in order to get the interpolated displacement
-        InterpolatedDispl += (LaserTrackSet[PointIndex[vertex_no].first].GetCorrection(PointIndex[vertex_no].second) * BaryCoord[vertex_no]);
+        // Use the barycentric coordinates as a weight for the correction stored at this vertex in order to get the interpolated displacement
+        InterpolatedDispl += (LaserTrackSet[PointIndex[vertex_no].first].GetDisplacement(PointIndex[vertex_no].second) * BaryCoord[vertex_no]);
     }
     
     // Return interpolated displacement
@@ -234,21 +234,21 @@ std::vector<ThreeVector<float>> InterpolateMap(const std::vector<LaserTrack>& La
     // Loop over all xbins of the TPC
     for(unsigned xbin = 0; xbin < TPC.GetDetectorResolution()[0]; xbin++) 
     {
-        std::cout << "Processing plane " << xbin << " of " << TPC.GetDetectorResolution()[0] << std::endl;
+        std::cout << "Processing plane " << xbin << " of " << TPC.GetDetectorResolution()[0] - 1 << std::endl;
         // Calculate Grid point x-coordinate
-        Location[0] = TPC.GetDetectorOffset()[0]+(TPC.GetMapMaximum()[0]-TPC.GetMapMinimum()[0])/static_cast<float>(TPC.GetDetectorResolution()[0]*xbin);
+        Location[0] = TPC.GetDetectorOffset()[0] + TPC.GetDetectorSize()[0]/static_cast<float>(TPC.GetDetectorResolution()[0]) * xbin;
     
         // Loop over all ybins of the TPC
         for(unsigned ybin = 0; ybin < TPC.GetDetectorResolution()[1]; ybin++) 
         {
             // Calculate Grid point y-coordinate
-            Location[1] = TPC.GetDetectorOffset()[1]+(TPC.GetMapMaximum()[1]-TPC.GetMapMinimum()[1])/static_cast<float>(TPC.GetDetectorResolution()[1]*ybin);
+            Location[1] = TPC.GetDetectorOffset()[1] + TPC.GetDetectorSize()[1]/static_cast<float>(TPC.GetDetectorResolution()[1]) * ybin;
       
             // Loop over all zbins of the TPC
             for(unsigned zbin = 0; zbin < TPC.GetDetectorResolution()[2]; zbin++)
             {
                 // Calculate Grid point y-coordinate
-                Location[2] = TPC.GetDetectorOffset()[2]+(TPC.GetMapMaximum()[2]-TPC.GetMapMinimum()[2])/static_cast<float>(TPC.GetDetectorResolution()[2]*zbin);
+                Location[2] = TPC.GetDetectorOffset()[2] + TPC.GetDetectorSize()[2]/static_cast<float>(TPC.GetDetectorResolution()[2]) * zbin;
         
                 // Fill displacement map 
                 DisplacementMap.push_back(InterpolateCGAL(LaserTrackSet,Mesh,Location));
@@ -313,13 +313,10 @@ void InterpolateTrack(LaserTrack& Track, const std::vector<LaserTrack>& LaserTra
     
     for(unsigned vertex_no = 0; vertex_no < 4; vertex_no++)
     {
-      InterpolatedDispl += (LaserTrackSet[PointIndex[vertex_no].first].GetCorrection(PointIndex[vertex_no].second) * BaryCoord[vertex_no]);
-//       std::cout << LaserTrackSet[PointIndex[vertex_no].first].GetCorrection(PointIndex[vertex_no].second)[0] << " " << LaserTrackSet[PointIndex[vertex_no].first].GetCorrection(PointIndex[vertex_no].second)[1] << " " << LaserTrackSet[PointIndex[vertex_no].first].GetCorrection(PointIndex[vertex_no].second)[2] << std::endl;
-//       for(unsigned coord = 0; coord < 3; coord++)  std::cout << (LaserTrackSet[PointIndex[vertex_no].first].GetCorrection(PointIndex[vertex_no].second)[coord] * BaryCoord[vertex_no]) << " ";
-//       std::cout << std::endl;
+      InterpolatedDispl += (LaserTrackSet[PointIndex[vertex_no].first].GetDisplacement(PointIndex[vertex_no].second) * BaryCoord[vertex_no]);
     }
     
     InterpolatedDispl = ThreeVector<float>::DotProduct(InterpolatedDispl,Track.GetPoyntingVector()) * Track.GetPoyntingVector();
-    Track.AddToCorrection(InterpolatedDispl,sample_no);
+    Track.AddToDisplacement(InterpolatedDispl,sample_no);
   }
 }

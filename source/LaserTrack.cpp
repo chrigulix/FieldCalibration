@@ -23,8 +23,8 @@ LaserTrack::LaserTrack(const TVector3& InEntryPoint, const TVector3& InExitPoint
         LaserReco.push_back(ThreeVector<float>(TrackPoint));
     }
     
-    // Initialize LaserCorrection vector
-    LaserCorrection.resize(LaserReco.size());
+    // Initialize LaserDisplacement vector
+    LaserDisplacement.resize(LaserReco.size());
 }
 
 LaserTrack::LaserTrack(std::array<float,2>& Angles, ThreeVector<float>& Position, const TPCVolumeHandler& TPCVolume) : TrackAngles(Angles) , LaserPosition(Position)
@@ -38,7 +38,7 @@ LaserTrack::LaserTrack(const unsigned int NSegments, std::array<float,2>& Angles
 {
 //   LaserTrue.resize(NumberOfTracksegments+1);
   LaserReco.resize(NumberOfTracksegments+1);
-  LaserCorrection.resize(NumberOfTracksegments+1);
+  LaserDisplacement.resize(NumberOfTracksegments+1);
   
   FindBoundaries(TPCVolume);
   FillTrack();
@@ -194,95 +194,108 @@ void LaserTrack::DistortTrack(std::string MapFileName, const TPCVolumeHandler& T
 }
 
 // This function calculates the track displacement
-void LaserTrack::CorrectTrack()
+void LaserTrack::CalcDisplacement()
 {
     // Initialize scaling parameter for point on true laser beam
     float TrueTrackPara;
   
-    // Only correct intermediate points if there are 3 or more track points
+    // Only Displacement calculation for intermediate points if there are 3 or more track points
     if(LaserReco.size() > 2)
     {
-        // Correct all intermediate track samples with the perpendicularity method
+        // Calculate displacement of all intermediate track samples with the derivative method
         for(unsigned sample_no = 1; sample_no < LaserReco.size()-1; sample_no++)
         {
+            // Calculate intersection parameter on the true track (Parameter*TrueTrackVector = IntersectionPoint)
             TrueTrackPara = ThreeVector<float>::DotProduct(LaserReco[sample_no-1]-LaserReco[sample_no+1],LaserReco[sample_no]-EntryPoint)
 		          / ThreeVector<float>::DotProduct(LaserReco[sample_no-1]-LaserReco[sample_no+1],ExitPoint-EntryPoint);
-                    
-            LaserCorrection[sample_no] = EntryPoint - LaserReco[sample_no] + TrueTrackPara*(ExitPoint-EntryPoint);
+            
+            // Calculate vector between IntersectionPoint and LaserRecoPoint, which is the displacement vector
+            LaserDisplacement[sample_no] = EntryPoint + TrueTrackPara*(ExitPoint-EntryPoint) - LaserReco[sample_no];
         }
     } // end if
     
     // If there are two and more points, shift entry and exit point to true position 
     if(LaserReco.size() > 1)
     {
-        // Correct first and last track samples
-        LaserCorrection.front() =  EntryPoint - LaserReco.front();
-        LaserCorrection.back() =  ExitPoint - LaserReco.back();
+        // Displacement for first and last track samples
+        LaserDisplacement.front() =  EntryPoint - LaserReco.front();
+        LaserDisplacement.back() =  ExitPoint - LaserReco.back();
     }
 }
 
-void LaserTrack::AddToCorrection(ThreeVector<float>& AdditionVector, unsigned long sample)
+// Add displacement to the reco position. This is important for generating a displacement map in non-distorted detector coordinates
+void LaserTrack::AddDisplToReco()
 {
-  LaserCorrection[sample] += AdditionVector;
+    // Loop over track points
+    for(unsigned long sample = 0; sample < LaserReco.size(); sample++)
+    {
+        // Add displacement to reconstructed track position
+        LaserReco[sample] += LaserDisplacement.at(sample);
+    }
+}
+
+void LaserTrack::AddToDisplacement(ThreeVector<float>& AdditionVector, unsigned long sample)
+{
+    LaserDisplacement[sample] += AdditionVector;
 }
 
 ThreeVector<float> LaserTrack::GetLaserPosition()
 {
-  return LaserPosition;
+    return LaserPosition;
 }
 
 std::array<float,2> LaserTrack::GetAngles()
 {
-  return TrackAngles;
+    return TrackAngles;
 }
 
 unsigned long LaserTrack::GetNumberOfSamples() const
 {
-  return LaserReco.size();  
+    return LaserReco.size();  
 }
 
 ThreeVector<float> LaserTrack::GetSamplePosition(const unsigned int& SampleNumber) const
 {
-  return LaserReco[SampleNumber];
+    return LaserReco[SampleNumber];
 }
 
-ThreeVector< float > LaserTrack::GetCorrection(const unsigned int& SampleNumber) const
+ThreeVector< float > LaserTrack::GetDisplacement(const unsigned int& SampleNumber) const
 {
-  return LaserCorrection[SampleNumber];
+    return LaserDisplacement[SampleNumber];
 }
 
 ThreeVector<float> LaserTrack::GetEntryPoint()
 {
-  return EntryPoint;
+    return EntryPoint;
 }
 
 ThreeVector<float> LaserTrack::GetExitPoint()
 {
-  return ExitPoint;
+    return ExitPoint;
 }
 
-void LaserTrack::AppendSample(ThreeVector<float>& SamplePosition, ThreeVector<float>& SampleCorrection)
+void LaserTrack::AppendSample(ThreeVector<float>& SamplePosition, ThreeVector<float>& SampleDisplacement)
 {
   LaserReco.push_back(SamplePosition);
-  LaserCorrection.push_back(SampleCorrection);
+  LaserDisplacement.push_back(SampleDisplacement);
 }
 
 void LaserTrack::AppendSample(ThreeVector<float>& SamplePosition)
 {
   LaserReco.push_back(SamplePosition);
-  LaserCorrection.push_back(ThreeVector<float>(0.0,0.0,0.0));
+  LaserDisplacement.push_back(ThreeVector<float>(0.0,0.0,0.0));
 }
 
 void LaserTrack::AppendSample(float SamplePos_x, float SamplePos_y, float SamplePos_z)
 {
   LaserReco.push_back( ThreeVector<float>(SamplePos_x,SamplePos_y,SamplePos_z) );
-  LaserCorrection.push_back(ThreeVector<float>(0.0,0.0,0.0));
+  LaserDisplacement.push_back(ThreeVector<float>(0.0,0.0,0.0));
 }
 
-void LaserTrack::AppendSample(float SamplePos_x, float SamplePos_y, float SamplePos_z, float SampleCorr_x, float SampleCorr_y, float SampleCorr_z)
+void LaserTrack::AppendSample(float SamplePos_x, float SamplePos_y, float SamplePos_z, float SampleDispl_x, float SampleDispl_y, float SampleDispl_z)
 {
   LaserReco.push_back( ThreeVector<float>(SamplePos_x,SamplePos_y,SamplePos_z) );
-  LaserCorrection.push_back(ThreeVector<float>(SampleCorr_x,SampleCorr_y,SampleCorr_z));
+  LaserDisplacement.push_back(ThreeVector<float>(SampleDispl_x,SampleDispl_y,SampleDispl_z));
 }
 
 void LaserTrack::DistortTracks(std::vector<LaserTrack>& LaserTracks, const std::string& MapFileName, const TPCVolumeHandler& TPCVolume)

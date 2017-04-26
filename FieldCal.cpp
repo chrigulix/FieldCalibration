@@ -51,11 +51,11 @@
 #include "include/Matrix3x3.hpp"
 #include "include/Laser.hpp"
 
-int main(int argc, char** argv);
+// Initialize functions defined below
 Laser ReadRecoTracks(int argc, char** argv);
-void LaserInterpThread(Laser&, const Laser&, const Delaunay&);
 void WriteRootFile(std::vector<ThreeVector<float>>&, TPCVolumeHandler&);
 void WriteTextFile(std::vector<ThreeVector<float>>&);
+void LaserInterpThread(Laser&, const Laser&, const Delaunay&);
 
 // Main function
 int main(int argc, char** argv)
@@ -86,55 +86,27 @@ int main(int argc, char** argv)
     Laser LaserTrackSet = ReadRecoTracks(argc,argv);
     
     // Calculate track displacement
-    std::cout << "Find track displacements.. " << std::endl;
-    LaserTrackSet.CorrectTrackSet();
+    std::cout << "Find track displacements... " << std::endl;
+    LaserTrackSet.CalcDisplacement();
+    
+    // Add displacement to reconstructed track to change to detector coordinates (only for map generation)
+    LaserTrackSet.AddDisplToReco();
     
     // Create delaunay mesh
     std::cout << "Generate mesh..." << std::endl;
     Delaunay Mesh = TrackMesher(LaserTrackSet.GetTrackSet());
     
     // Interpolate Displacement Map (regularly spaced grid)
+    std::cout << "Start interpolation..." << std::endl;
     std::vector<ThreeVector<float>> DisplacementMap = InterpolateMap(LaserTrackSet.GetTrackSet(),Mesh,Detector);
     
     // Fill displacement map into TH3 histograms and write them to file
+    std::cout << "Write to File ..." << std::endl;
     WriteRootFile(DisplacementMap,Detector);
     
-//     Detector.GetMapMaximum().print();
-//     Detector.GetMapMinimum().print();
-    
-//   double HistRange[3][2];
-//   for (int coord = 0; coord < 3; coord++)
-//   {
-//       for(int minmax = 0; minmax < 2; minmax++)
-//       {
-//           HistRange[coord][minmax] = (DetectorSize[coord]+pow(2,-25))*( minmax - pow(-1,minmax)/((double)DetectorResolution[coord]-1.0)/2.0 );
-//           std::cout << DetectorOffset[coord]+HistRange[coord][minmax] << " ";
-//       }
-//       std::cout << std::endl;
-//   }
-  
-//   time_t timer;
-//   std::time(&timer);
-// 
-//   std::vector<ThreeVector<float>> Displacement;
-//   
-//   ThreeVector<float> Location;
-//   for(unsigned xbin = 0; xbin < DetectorResolution[0]; xbin++) 
-//   {
-//     std::cout << xbin << std::endl;
-//     Location[0] = DetectorOffset[0]+(HistRange[0][1]-HistRange[0][0])/(float)DetectorResolution[0]*xbin;
-//     for(unsigned ybin = 0; ybin < DetectorResolution[1]; ybin++) 
-//     {
-//       Location[1] = DetectorOffset[1]+(HistRange[1][1]-HistRange[1][0])/(float)DetectorResolution[1]*ybin;
-//       for(unsigned zbin = 0; zbin < DetectorResolution[2]; zbin++)
-//       {
-// 	Location[2] = DetectorOffset[2]+(HistRange[2][1]-HistRange[2][0])/(float)DetectorResolution[2]*zbin;
-// 	Displacement.push_back(InterpolateCGAL(LaserTrackSet.GetTrackSet(),Mesh,Location));
-//       }
-//     }
-//   }
     std::cout << "End of program after "<< std::difftime(std::time(NULL),timer) << " s" << std::endl;
-}
+} // end main
+
 
 Laser ReadRecoTracks(int argc, char** argv)
 {
@@ -217,12 +189,8 @@ Laser ReadRecoTracks(int argc, char** argv)
     delete RecoTrackTree;
     
     return TrackSelection;
-}
+} // end ReadRecoTracks
 
-void LaserInterpThread(Laser& LaserTrackSet, const Laser& InterpolationLaser, const Delaunay& InterpolationMesh)
-{
-  LaserTrackSet.InterpolateTrackSet(InterpolationLaser, InterpolationMesh);
-}
 
 void WriteRootFile(std::vector<ThreeVector<float>>& InterpolationData, TPCVolumeHandler& TPCVolume)
 { 
@@ -232,10 +200,10 @@ void WriteRootFile(std::vector<ThreeVector<float>>& InterpolationData, TPCVolume
     ThreeVector<float> MaximumCoord = TPCVolume.GetMapMaximum();
   
     // Initialize all TH3F
-    std::vector<TH3F> RecoField;
-    RecoField.push_back(TH3F("Reco_Field_X","Reco Field X",Resolution[0],MinimumCoord[0],MaximumCoord[0],Resolution[1],MinimumCoord[1],MaximumCoord[1],Resolution[2],MinimumCoord[2],MaximumCoord[2]));
-    RecoField.push_back(TH3F("Reco_Field_Y","Reco Field Y",Resolution[0],MinimumCoord[0],MaximumCoord[0],Resolution[1],MinimumCoord[1],MaximumCoord[1],Resolution[2],MinimumCoord[2],MaximumCoord[2]));
-    RecoField.push_back(TH3F("Reco_Field_Z","Reco Field Z",Resolution[0],MinimumCoord[0],MaximumCoord[0],Resolution[1],MinimumCoord[1],MaximumCoord[1],Resolution[2],MinimumCoord[2],MaximumCoord[2]));
+    std::vector<TH3F> RecoDisplacement;
+    RecoDisplacement.push_back(TH3F("Reco_Displacement_X","Reco Displacement X",Resolution[0],MinimumCoord[0],MaximumCoord[0],Resolution[1],MinimumCoord[1],MaximumCoord[1],Resolution[2],MinimumCoord[2],MaximumCoord[2]));
+    RecoDisplacement.push_back(TH3F("Reco_Displacement_Y","Reco Displacement Y",Resolution[0],MinimumCoord[0],MaximumCoord[0],Resolution[1],MinimumCoord[1],MaximumCoord[1],Resolution[2],MinimumCoord[2],MaximumCoord[2]));
+    RecoDisplacement.push_back(TH3F("Reco_Displacement_Z","Reco Displacement Z",Resolution[0],MinimumCoord[0],MaximumCoord[0],Resolution[1],MinimumCoord[1],MaximumCoord[1],Resolution[2],MinimumCoord[2],MaximumCoord[2]));
   
 
     // Loop over all xbins
@@ -251,114 +219,50 @@ void WriteRootFile(std::vector<ThreeVector<float>>& InterpolationData, TPCVolume
                 for(unsigned coord = 0; coord < 3; coord++)
                 {
                     // Fill interpolated grid points into histograms
-                    RecoField[coord].SetBinContent(xbin+1,ybin+1,zbin+1, InterpolationData[zbin+( TPCVolume.GetDetectorResolution()[2]*(ybin+TPCVolume.GetDetectorResolution()[1]*xbin) )][coord]);
+                    RecoDisplacement[coord].SetBinContent(xbin+1,ybin+1,zbin+1, InterpolationData[zbin+( TPCVolume.GetDetectorResolution()[2]*(ybin+TPCVolume.GetDetectorResolution()[1]*xbin) )][coord]);
                 } // end coordinate loop
             } // end zbin loop
         } // end ybin loop
     } // end zbin loop
-  
-  TFile *OutputFile = new TFile("RecoField.root", "recreate");
-  for(unsigned coord = 0; coord < RecoField.size(); coord++)
-  {
-    RecoField[coord].Write();
-  }
-  OutputFile -> Close();
-  delete OutputFile;
-//   gDirectory->GetList()->Delete();
+    
+    // Open and recreate output file
+    TFile OutputFile("RecoDispl.root", "recreate");
+    
+    // Loop over space coordinates
+    for(unsigned coord = 0; coord < RecoDisplacement.size(); coord++)
+    {
+        // Write every TH3 map into file
+        RecoDisplacement[coord].Write();
+    }
+    
+    // Close output file and clean up
+    OutputFile.Close();
+    gDirectory->GetList()->Delete();
 }
+
 
 void WriteTextFile(std::vector<ThreeVector<float>>& InterpolationData)
 {
-  std::ofstream OutputFile;
-  OutputFile.open("Reco.txt", std::ios::out);
-  for(unsigned entry = 0; entry < InterpolationData.size(); entry++)
-  {
-    OutputFile << InterpolationData[entry][0] << InterpolationData[entry][1] << InterpolationData[entry][2];
-  }
-  OutputFile.close();
-}
+    // Initialize stream to file
+    std::ofstream OutputFile;
+  
+    // Open output file
+    OutputFile.open("Reco.txt", std::ios::out);
+  
+    // Loop over all interpolated data points
+    for(unsigned entry = 0; entry < InterpolationData.size(); entry++)
+    {
+        // Write every point into a seperate line
+        OutputFile << InterpolationData[entry][0] << InterpolationData[entry][1] << InterpolationData[entry][2];
+    }
 
-// void DrawSpaceCharge()
-// {
-//   TH2F * hSpaceCharge = new TH2F("Space Charge","Space Charge",kResolution[2],0,kDetector[2],kResolution[0],0,kDetector[0]);
-//   for (int ybin = 0; ybin < kResolution[1]; ybin++) 
-//   {
-//     for (int xbin = 0; xbin < kResolution[0]; xbin++) for (int zbin = 0; zbin < kResolution[2]; zbin++)
-//     {
-//       hSpaceCharge -> SetBinContent(zbin+1,xbin+1,-fChargeDistribution[xbin][ybin][zbin]);
-//     }
-//     hSpaceCharge -> SetStats(0);
-//     hSpaceCharge -> SetMaximum(1e-8);
-//     hSpaceCharge -> SetMinimum(0);
-//     TCanvas * C0 = new TCanvas("Space Charge","Space Charge",1000,500);
-//     hSpaceCharge -> Draw("colz");
-//     C0 -> Print("SpaceCharge.gif+5","gif+5");
-//   }
-//   delete hSpaceCharge;
-// }
-// 
-// void DrawField()
-// {
-//   TH2F * hFieldX = new TH2F("Field Map X","Field Map X",kResolution[2],0,kDetector[2],kResolution[0],0,kDetector[0]);
-//   TH2F * hFieldY = new TH2F("Field Map Y","Field Map Y",kResolution[2],0,kDetector[2],kResolution[0],0,kDetector[0]);
-//   TH2F * hFieldZ = new TH2F("Field Map Z","Field Map Z",kResolution[2],0,kDetector[2],kResolution[0],0,kDetector[0]);
-//   for (int ybin = 0; ybin < kResolution[1]; ybin++) 
-//   {
-//     for (int xbin = 0; xbin < kResolution[0]; xbin++) for (int zbin = 0; zbin < kResolution[2]; zbin++)
-//     {
-//       hFieldX -> SetBinContent(zbin+1,xbin+1,fRecoField[0][xbin][ybin][zbin]);
-//       hFieldY -> SetBinContent(zbin+1,xbin+1,fRecoField[1][xbin][ybin][zbin]);
-//       hFieldZ -> SetBinContent(zbin+1,xbin+1,fRecoField[2][xbin][ybin][zbin]);
-//     }
-//     hFieldX -> SetStats(0);
-//     hFieldY -> SetStats(0);
-//     hFieldZ -> SetStats(0);
-//     
-//     hFieldX -> SetMaximum(0.02);
-//     hFieldX -> SetMinimum(-0.02);
-//     hFieldY -> SetMaximum(0.07);
-//     hFieldY -> SetMinimum(-0.07);
-//     hFieldZ-> SetMaximum(0.05);
-//     hFieldZ -> SetMinimum(-0.05);
-//     
-//     TCanvas * C1 = new TCanvas("Field Map X","Field Map X",1000,500);
-//     hFieldX -> Draw("colz");
-//     C1 -> Print("FieldX.gif+5","gif+5");
-//     TCanvas * C2 = new TCanvas("Field Map Y","Field Map Y",1000,500);
-//     hFieldY -> Draw("colz");
-//     C2 -> Print("FieldY.gif+5","gif+5");
-//     TCanvas * C3 = new TCanvas("Field Map Z","Field Map Z",1000,500);
-//     hFieldZ -> Draw("colz");
-//     C3 -> Print("FieldZ.gif+5","gif+5");
-//     
-//     delete C1;
-//     delete C2;
-//     delete C3;
-//   }
-//   delete hFieldX;
-//   delete hFieldY;
-//   delete hFieldZ;
-// }
-// 
-// void FillHisto ()
-// { 
-//   TH3F *DistMapX = new TH3F("Distortion_Field_X","Distortion Field X",kResolution[0],0,kDetector[0],kResolution[1],0,kDetector[1],kResolution[2],0,kDetector[2]);
-//   TH3F *DistMapY = new TH3F("Distortion_Field_Y","Distortion Field Y",kResolution[0],0,kDetector[0],kResolution[1],0,kDetector[1],kResolution[2],0,kDetector[2]);
-//   TH3F *DistMapZ = new TH3F("Distortion_Field_Z","Distortion Field Z",kResolution[0],0,kDetector[0],kResolution[1],0,kDetector[1],kResolution[2],0,kDetector[2]);
-//   
-//   for (int xbin = 0; xbin < kResolution[0]; xbin++) for (int ybin = 0; ybin < kResolution[1]; ybin++) for(int zbin = 0; zbin < kResolution[2]; zbin++)
-//   {
-//     DistMapX -> SetBinContent(xbin+1,ybin+1,zbin+1,fRecoField[0][xbin][ybin][zbin]);
-//     DistMapY -> SetBinContent(xbin+1,ybin+1,zbin+1,fRecoField[1][xbin][ybin][zbin]);
-//     DistMapZ -> SetBinContent(xbin+1,ybin+1,zbin+1,fRecoField[2][xbin][ybin][zbin]);
-//   }
-//   TFile *OutputFile = new TFile("Field.root", "recreate");
-//   DistMapX -> Write();
-//   DistMapY -> Write();
-//   DistMapZ -> Write(); 
-//   OutputFile -> Close();
-//   
-//   delete DistMapX;
-//   delete DistMapY;
-//   delete DistMapZ;
-// }
+    // Close file
+    OutputFile.close();
+} // WriteRootFile
+
+
+// This is the multi-threading interpolation function. Just hangs out here, for legacy purposes 
+void LaserInterpThread(Laser& LaserTrackSet, const Laser& InterpolationLaser, const Delaunay& InterpolationMesh)
+{
+  LaserTrackSet.InterpolateTrackSet(InterpolationLaser, InterpolationMesh);
+} // LaserInterpThread
