@@ -1,5 +1,4 @@
 #include "../include/LaserTrack.hpp"
-#include "../../larlite/MyLArLite/UserDev/cosmics/CosmicFinder/sample.h"
 
 // Default constructor
 LaserTrack::LaserTrack()
