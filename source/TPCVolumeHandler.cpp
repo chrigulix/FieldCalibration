@@ -5,28 +5,31 @@ TPCVolumeHandler::TPCVolumeHandler()
   
 }
 
-TPCVolumeHandler::TPCVolumeHandler(const ThreeVector<float>& TPCSize, const ThreeVector<float>& TPCOffset, const ThreeVector<int>& TPCResolution) : DetectorSize(TPCSize), DetectorOffset(TPCOffset), DetectorResolution(TPCResolution)
+TPCVolumeHandler::TPCVolumeHandler(const ThreeVector<float>& TPCSize, const ThreeVector<float>& TPCOffset, const ThreeVector<unsigned long>& TPCResolution) : DetectorSize(TPCSize), DetectorOffset(TPCOffset), DetectorResolution(TPCResolution)
 {
   NormalVector.resize(2*DetectorSize.size());
   NormalVectorOffSet.resize(2*DetectorOffset.size());
   
   CalcNormal(DetectorSize, DetectorOffset);
+  CalcMapCoordExtreme();
 }
 
-TPCVolumeHandler::TPCVolumeHandler(const std::array<float,3>& TPCSize, const std::array<float,3>& TPCOffset , const std::array<int,3>& TPCResolution) : DetectorSize(TPCSize), DetectorOffset(TPCOffset), DetectorResolution(TPCResolution)
+TPCVolumeHandler::TPCVolumeHandler(const std::array<float,3>& TPCSize, const std::array<float,3>& TPCOffset , const std::array<unsigned long,3>& TPCResolution) : DetectorSize(TPCSize), DetectorOffset(TPCOffset), DetectorResolution(TPCResolution)
 {
   NormalVector.resize(2*DetectorSize.size());
   NormalVectorOffSet.resize(2*DetectorOffset.size());
   
   CalcNormal(DetectorSize, DetectorOffset);
+  CalcMapCoordExtreme();
 }
 
-TPCVolumeHandler::TPCVolumeHandler(float TPCSize[3], float TPCOffset[3], int TPCResolution[3]) : DetectorSize(TPCSize), DetectorOffset(TPCOffset), DetectorResolution(TPCResolution)
+TPCVolumeHandler::TPCVolumeHandler(float TPCSize[3], float TPCOffset[3], unsigned long TPCResolution[3]) : DetectorSize(TPCSize), DetectorOffset(TPCOffset), DetectorResolution(TPCResolution)
 {
   NormalVector.resize(2*DetectorSize.size());
   NormalVectorOffSet.resize(2*DetectorOffset.size());
   
   CalcNormal(DetectorSize, DetectorOffset);
+  CalcMapCoordExtreme();
 }
 
 std::vector<ThreeVector<float>> TPCVolumeHandler::GetNormalVectors() const
@@ -80,19 +83,38 @@ void TPCVolumeHandler::CalcNormal(ThreeVector<float>& TPCSize, ThreeVector<float
 //   }
 }
 
+// This function calculates the mimimum and maximum points of a TH3 histogram
+void TPCVolumeHandler::CalcMapCoordExtreme()
+{
+    // Loop over coordinates 
+    for(unsigned int coord = 0; coord < MapCoordMaximum.size(); coord++)
+    {
+        MapCoordMinimum[coord] = DetectorOffset[coord] - (DetectorSize[coord] + 1e-7) / (static_cast<float>(DetectorResolution[coord])-1.0)/2.0;
+        MapCoordMaximum[coord] = DetectorOffset[coord] + (DetectorSize[coord] + 1e-7) / (static_cast<float>(DetectorResolution[coord])-1.0);
+    }
+}
+
 ThreeVector<float> TPCVolumeHandler::GetDetectorSize() const
 {
-  return DetectorSize;
+    return DetectorSize;
 }
 
 ThreeVector<float> TPCVolumeHandler::GetDetectorOffset() const
 {
-  return DetectorOffset;
+    return DetectorOffset;
 }
 
-ThreeVector<int> TPCVolumeHandler::GetDetectorResolution() const
+ThreeVector<unsigned long> TPCVolumeHandler::GetDetectorResolution() const
 {
-  return DetectorResolution;
+    return DetectorResolution;
 }
 
+ThreeVector<float> TPCVolumeHandler::GetMapMinimum() const
+{
+    return MapCoordMinimum;
+}
 
+ThreeVector<float> TPCVolumeHandler::GetMapMaximum() const
+{
+    return MapCoordMaximum;
+}

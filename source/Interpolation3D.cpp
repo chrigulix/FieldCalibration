@@ -1,7 +1,7 @@
 #include "../include/Interpolation3D.hpp"
 #include "../include/Laser.hpp"
 
-std::vector<std::pair<unsigned,float>> GetClosestTracksInfo(std::vector<LaserTrack>& LaserTracks, const unsigned NumberOfClosestTracks)
+std::vector<std::pair<unsigned,float>> GetClosestTracksInfo(std::vector<LaserTrack>& LaserTrackSet, const unsigned NumberOfClosestTracks)
 {
 //   std::vector<LaserTrack> ClosestTracks;
 //   ClosestTracks.resize(NumberOfClosestTracks);
@@ -14,17 +14,17 @@ std::vector<std::pair<unsigned,float>> GetClosestTracksInfo(std::vector<LaserTra
   
   
   ThreeVector<float> PoyntingVector = {1.0,1.0,3.0};
-  PoyntingVector -= LaserTracks.front().GetLaserPosition();
+  PoyntingVector -= LaserTrackSet.front().GetLaserPosition();
   PoyntingVector /= PoyntingVector.GetNorm();
   std::array<float,2> AnglesOfPoint = AnglesFromPoynting(PoyntingVector);
   
   std::cout << AnglesOfPoint[0]*180/M_PI << " " << AnglesOfPoint[1]*180/M_PI << std::endl;
   
-  for(unsigned track = 0; track < LaserTracks.size(); track++)
+  for(unsigned track = 0; track < LaserTrackSet.size(); track++)
   {
     float Radius = 0;
     for(unsigned angle = 0; angle < AnglesOfPoint.size(); angle++)
-      Radius += std::pow(AnglesOfPoint[angle]-LaserTracks[track].GetAngles()[angle],2);
+      Radius += std::pow(AnglesOfPoint[angle]-LaserTrackSet[track].GetAngles()[angle],2);
     
     if(ClosestTracksInfo.back().second > Radius)
     {
@@ -40,7 +40,7 @@ std::vector<std::pair<unsigned,float>> GetClosestTracksInfo(std::vector<LaserTra
   return ClosestTracksInfo;
 }
 
-std::vector<std::pair<unsigned int, unsigned int>> GetClosestLaserSample(std::vector<LaserTrack>& LaserTracks, const unsigned int NumberOfClosestSamples)
+std::vector<std::pair<unsigned int, unsigned int>> GetClosestLaserSample(std::vector<LaserTrack>& LaserTrackSet, const unsigned int NumberOfClosestSamples)
 {
   ThreeVector<float> InterpolPoint = {1.0,1.0,3.0};
   
@@ -51,14 +51,14 @@ std::vector<std::pair<unsigned int, unsigned int>> GetClosestLaserSample(std::ve
   for(unsigned info = 0; info < NumberOfClosestSamples; info++)
     ClosestSampleInfo.push_back(std::make_pair(0,0xDEADBEEF));
   
-  std::vector<std::pair<unsigned int,float>> ClosestTracksInfo = GetClosestTracksInfo(LaserTracks,3);
+  std::vector<std::pair<unsigned int,float>> ClosestTracksInfo = GetClosestTracksInfo(LaserTrackSet,3);
   
   float Radius = 0;
   for(unsigned info = 0; info < ClosestTracksInfo.size(); info++)
   {
-    for(unsigned tracksample = 0; tracksample < LaserTracks[ClosestTracksInfo[info].first].GetNumberOfSamples(); tracksample++)
+    for(unsigned tracksample = 0; tracksample < LaserTrackSet[ClosestTracksInfo[info].first].GetNumberOfSamples(); tracksample++)
     {
-      Radius = (InterpolPoint - LaserTracks[ClosestTracksInfo[info].first].GetSamplePosition(tracksample)).GetNorm();
+      Radius = (InterpolPoint - LaserTrackSet[ClosestTracksInfo[info].first].GetSamplePosition(tracksample)).GetNorm();
       if(!info && ClosestSampleInfo[1].second > Radius)
       {
 	ClosestSampleInfo[1].first = tracksample;
@@ -105,25 +105,34 @@ bool PairSortFunction(std::pair<unsigned,float> left_pair, std::pair<unsigned,fl
   return (left_pair.second < right_pair.second);
 }
 
-Delaunay TrackMesher(const std::vector<LaserTrack>& LaserTracks)
+// This produces the Delaunay Mesh from LaserTrackSet in a std::vector
+Delaunay TrackMesher(const std::vector<LaserTrack>& LaserTrackSet)
 { 
-  std::vector< std::pair<Point,std::pair<unsigned long, unsigned long>> > Points;
-  
-  for(unsigned long track = 0; track < LaserTracks.size(); track++)
-  {
-    for(unsigned long sample = 0; sample < LaserTracks[track].GetNumberOfSamples(); sample++)
+    // Create a vector with a std::pair< Point, PointInfo (also a pair) > this is the input format for the Delaunay constructor
+    std::vector< std::pair<Point,std::pair<unsigned long, unsigned long>> > Points;
+
+    // Loop over tracks in the vector
+    for(unsigned long track = 0; track < LaserTrackSet.size(); track++)
     {
-        Point SamplePoint = Point(LaserTracks[track].GetSamplePosition(sample)[0],LaserTracks[track].GetSamplePosition(sample)[1],LaserTracks[track].GetSamplePosition(sample)[2]);
-        
-        std::pair<unsigned long, unsigned long> SamplePointIndex = std::make_pair(track,sample);
-        
-        Points.push_back( std::make_pair(SamplePoint,SamplePointIndex) );
-    }
-  }
-  
-  Delaunay DelaunayMesh(Points.begin(), Points.end());
-  
-  return DelaunayMesh;
+        // Loop over data points (samples) of each track
+        for(unsigned long sample = 0; sample < LaserTrackSet[track].GetNumberOfSamples(); sample++)
+        {
+            // Convert ThreeVector<float> of sample position to CGAL point
+            Point SamplePoint = Point(LaserTrackSet[track].GetSamplePosition(sample)[0],LaserTrackSet[track].GetSamplePosition(sample)[1],LaserTrackSet[track].GetSamplePosition(sample)[2]);
+            
+            // Prepare point info (pair with track number and track sample number)
+            std::pair<unsigned long, unsigned long> SamplePointIndex = std::make_pair(track,sample);
+       
+            // Fill Delaunay input container with point and point info
+            Points.push_back( std::make_pair(SamplePoint,SamplePointIndex) );
+        } // end sample loop
+    } // end track loop
+    
+    // Create Delaunay mesh (this takes quite some runtime!)
+    Delaunay DelaunayMesh(Points.begin(), Points.end());
+
+    // Return mesh
+    return DelaunayMesh;
 }
 
 ThreeVector<float> PointToVector(Point& InputPoint)
@@ -138,92 +147,119 @@ Point VectorToPoint(ThreeVector<float>& InputVector)
   return point_res;
 }
 
-ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTracks, const Delaunay& Mesh, ThreeVector<float> Location)
+// This function Interpolates the displacement of Location within the Mesh
+ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet, const Delaunay& Mesh, ThreeVector<float> Location)
 {
-//   std::cout << "Start CGAL" << std::endl;
-  
-//   ThreeVector<float> Location = {0.0,0.0,0.0};
-  std::array<std::pair<unsigned long, unsigned long>,4> PointIndex;
-  ThreeVector<float> InterpolatedDispl = {0.0,0.0,0.0};
-  
-//   if(Test == Location) std::cout << "cool" << std::endl;
-//   else std::cout << "shit" << std::endl;
-//   Delaunay Mesh = TrackMesher(LaserTracks);
-  
-//   std::cout << "Mesh done!" << std::endl;
-  
-//   auto start = std::chrono::highresolution_clock::now();
+    // Create a array which contains the info of all 4 vertices of a cell
+    std::array<std::pair<unsigned long, unsigned long>,4> PointIndex;
 
-  Delaunay::Cell_handle Cell =  Mesh.locate(VectorToPoint(Location));
+    // Initialize a displacement vector with zero
+    ThreeVector<float> InterpolatedDispl = {0.0,0.0,0.0};
+    
+    // Initialize Barycentry coordinate system (it will have 4 dimensions)
+    std::vector<float> BaryCoord;
+    
+    // Find cell in the mesh where the point is located
+    Delaunay::Cell_handle Cell =  Mesh.locate(VectorToPoint(Location));
   
-  ThreeVector<float> VertexPoint;
-  for(unsigned vertex_no = 0; vertex_no < PointIndex.size(); vertex_no++)
-  {
-    PointIndex[vertex_no] = Cell->vertex(vertex_no)->info();
-  }
-  
-  Matrix3x3 TransMatrix = {{0,0,0},{0,0,0},{0,0,0}};
-  
-  for(unsigned row = 0; row < 3; row++)
-  {
-    for(unsigned column = 0; column < 3; column++)
+    // Loop over all four vertex points of the cell of interest
+    for(unsigned vertex_no = 0; vertex_no < PointIndex.size(); vertex_no++)
     {
-      TransMatrix[row][column] = LaserTracks[PointIndex[column].first].GetSamplePosition(PointIndex[column].second)[row] - LaserTracks[PointIndex.back().first].GetSamplePosition(PointIndex.back().second)[row];
+        // Get vertex info of the cell (track number, sample number)
+        PointIndex[vertex_no] = Cell->vertex(vertex_no)->info();
     }
-  }
+    
+    // Initialize matrix for Location transformation into barycentric coordinate system
+    Matrix3x3 TransMatrix = {{0,0,0},{0,0,0},{0,0,0}};
+  
+    // Loop over matrix rows
+    for(unsigned row = 0; row < 3; row++)
+    {
+        // Loop over matrix columns
+        for(unsigned column = 0; column < 3; column++)
+        {
+            // Fill transformation matrix elements
+            TransMatrix[row][column] = LaserTrackSet[PointIndex[column].first].GetSamplePosition(PointIndex[column].second)[row] - LaserTrackSet[PointIndex.back().first].GetSamplePosition(PointIndex.back().second)[row];
+        }
+    }
+    
+    // Reuse Location and store its position relative to the last vertex of the cell it is contained in
+    Location -= LaserTrackSet[PointIndex.back().first].GetSamplePosition(PointIndex.back().second);
 
-  Location -= LaserTracks[PointIndex.back().first].GetSamplePosition(PointIndex.back().second);
-//   std::cout << TransMatrix.Determinant() << std::endl;
-  
-  std::vector<float> BaryCoord;
-  if(TransMatrix.Invert())
-  {
-    BaryCoord = (TransMatrix * Location).GetStdVector();
-    BaryCoord.push_back(1-BaryCoord[0]-BaryCoord[1]-BaryCoord[2]);
-//     std::cout << BaryCoord[0] << " " << BaryCoord[1] << " " << BaryCoord[2] << " " << BaryCoord[3] << std::endl;
-  }
-  else
-  {
-//     BaryCoord = {0.0,0.0,0.0,0.0};
-    InterpolatedDispl = {0.0,0.0,0.0};
+    // If the transformation matrix can be successfully inverted
+    if(TransMatrix.Invert())
+    {
+        // Use inverted matrix to fill the first three coordinates
+        BaryCoord = (TransMatrix * Location).GetStdVector();
+    
+        // The sum of all barycentric coordinates has to be 1 by definition, use this to calculate the 4th coordinate
+        BaryCoord.push_back(1-BaryCoord[0]-BaryCoord[1]-BaryCoord[2]);
+    }
+    else // if the matrix can't be inverted
+    {
+        // Set displacement zero and end function immediately!
+        InterpolatedDispl = {0.0,0.0,0.0};
+        return InterpolatedDispl;
+    }
+    
+    // Also barycentric coordinates need to be positive numbers (else the coordinate is outside of the cell).
+    // So if one of the coordinates is smaller than zero
+    if(BaryCoord[0] <= 0.0 || BaryCoord[1] <= 0.0 || BaryCoord[2] <= 0.0 || BaryCoord[3] <= 0.0)
+    {
+        // Set displacement zero and end function immediately!
+        InterpolatedDispl = {0.0,0.0,0.0};
+        return InterpolatedDispl;
+    }
+    
+    // If the function is still alive, loop over all barycentric coordinates
+    for(unsigned vertex_no = 0; vertex_no < 4; vertex_no++)
+    {
+        // Use the barycentric coordinates as a weight for the corrections stored at this vertex in order to get the interpolated displacement
+        InterpolatedDispl += (LaserTrackSet[PointIndex[vertex_no].first].GetCorrection(PointIndex[vertex_no].second) * BaryCoord[vertex_no]);
+    }
+    
+    // Return interpolated displacement
     return InterpolatedDispl;
-  }
-  
-  if(BaryCoord[0]< 0.0 || BaryCoord[1]< 0.0 || BaryCoord[2]< 0.0 || BaryCoord[3]< 0.0)
-  {
-//     std::cout << BaryCoord[0] << " " << BaryCoord[1] << " " << BaryCoord[2] << " " << BaryCoord[3] << std::endl;
-    InterpolatedDispl = {0.0,0.0,0.0};
-    return InterpolatedDispl;
-  }
-  
-  for(unsigned vertex_no = 0; vertex_no < 4; vertex_no++)
-  {
-    InterpolatedDispl += (LaserTracks[PointIndex[vertex_no].first].GetCorrection(PointIndex[vertex_no].second) * BaryCoord[vertex_no]);
-//     std::cout << LaserTracks[PointIndex[vertex_no].first].GetCorrection(PointIndex[vertex_no].second)[0] << " " << LaserTracks[PointIndex[vertex_no].first].GetCorrection(PointIndex[vertex_no].second)[1] << " " << LaserTracks[PointIndex[vertex_no].first].GetCorrection(PointIndex[vertex_no].second)[2] << std::endl;
-//     for(unsigned coord = 0; coord < 3; coord++)  std::cout << (LaserTracks[PointIndex[vertex_no].first].GetCorrection(PointIndex[vertex_no].second)[coord] * BaryCoord[vertex_no]) << " ";
-//     std::cout << std::endl;
-  }
-//   std::cout << InterpolatedDispl[0] << " " << InterpolatedDispl[0] << " " << InterpolatedDispl[0] << std::endl;
-//   std::cout << InterpolatedDispl[0] << " " << InterpolatedDispl[1] << " " << InterpolatedDispl[2] << std::endl;
-//   for(unsigned row = 0; row < 3; row++)
-//   {
-//     for(unsigned column = 0; column < 3; column++)
-//     {
-//       std::cout << TransMatrix[row][column] << " ";
-//     }
-//     std::cout << std::endl;
-//   }
-  
-//   auto elapsed = std::chrono::high_resolution_clock::now() - start;
-  
-//   std::cout << "Function Time [ms]: " << std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() << std::endl;
-  
-  return InterpolatedDispl;
-//   Triangulation::Cell_handle c = D.;
-//   CGAL::Delaunay_triangulation_3<InterpKernel, Tds, CGAL::Fast_location> a(Points.begin(), Points.end());
 }
 
-void InterpolateTrack(LaserTrack& Track, const std::vector<LaserTrack>& LaserTracks, const Delaunay& Mesh)
+// This function interpolates regularly spaced grid points of the TPC and stores them in a std::vector (can later be used in the WriteRootFile function)
+std::vector<ThreeVector<float>> InterpolateMap(const std::vector<LaserTrack>& LaserTrackSet, const Delaunay& Mesh, const TPCVolumeHandler& TPC)
+{
+    // Initialize output data structure
+    std::vector<ThreeVector<float>> DisplacementMap;
+    
+    // Initialize temporary location vector
+    ThreeVector<float> Location;
+    
+    // Loop over all xbins of the TPC
+    for(unsigned xbin = 0; xbin < TPC.GetDetectorResolution()[0]; xbin++) 
+    {
+        std::cout << "Processing plane " << xbin << " of " << TPC.GetDetectorResolution()[0] << std::endl;
+        // Calculate Grid point x-coordinate
+        Location[0] = TPC.GetDetectorOffset()[0]+(TPC.GetMapMaximum()[0]-TPC.GetMapMinimum()[0])/static_cast<float>(TPC.GetDetectorResolution()[0]*xbin);
+    
+        // Loop over all ybins of the TPC
+        for(unsigned ybin = 0; ybin < TPC.GetDetectorResolution()[1]; ybin++) 
+        {
+            // Calculate Grid point y-coordinate
+            Location[1] = TPC.GetDetectorOffset()[1]+(TPC.GetMapMaximum()[1]-TPC.GetMapMinimum()[1])/static_cast<float>(TPC.GetDetectorResolution()[1]*ybin);
+      
+            // Loop over all zbins of the TPC
+            for(unsigned zbin = 0; zbin < TPC.GetDetectorResolution()[2]; zbin++)
+            {
+                // Calculate Grid point y-coordinate
+                Location[2] = TPC.GetDetectorOffset()[2]+(TPC.GetMapMaximum()[2]-TPC.GetMapMinimum()[2])/static_cast<float>(TPC.GetDetectorResolution()[2]*zbin);
+        
+                // Fill displacement map 
+                DisplacementMap.push_back(InterpolateCGAL(LaserTrackSet,Mesh,Location));
+            } // end zbin loop
+        } // end ybin loop
+    } // end ybin loop
+    
+    return DisplacementMap;
+}
+
+void InterpolateTrack(LaserTrack& Track, const std::vector<LaserTrack>& LaserTrackSet, const Delaunay& Mesh)
 {
   std::array<std::pair<unsigned long, unsigned long>,4> PointIndex;
   ThreeVector<float> InterpolatedDispl = {0.0,0.0,0.0};
@@ -247,11 +283,11 @@ void InterpolateTrack(LaserTrack& Track, const std::vector<LaserTrack>& LaserTra
     {
       for(unsigned column = 0; column < 3; column++)
       {
-	TransMatrix[row][column] = LaserTracks[PointIndex[column].first].GetSamplePosition(PointIndex[column].second)[row] - LaserTracks[PointIndex.back().first].GetSamplePosition(PointIndex.back().second)[row];
+	TransMatrix[row][column] = LaserTrackSet[PointIndex[column].first].GetSamplePosition(PointIndex[column].second)[row] - LaserTrackSet[PointIndex.back().first].GetSamplePosition(PointIndex.back().second)[row];
       }
     }
     
-    Location -= LaserTracks[PointIndex.back().first].GetSamplePosition(PointIndex.back().second);
+    Location -= LaserTrackSet[PointIndex.back().first].GetSamplePosition(PointIndex.back().second);
 //     std::cout << TransMatrix.Determinant() << std::endl;
   
     std::vector<float> BaryCoord;
@@ -277,9 +313,9 @@ void InterpolateTrack(LaserTrack& Track, const std::vector<LaserTrack>& LaserTra
     
     for(unsigned vertex_no = 0; vertex_no < 4; vertex_no++)
     {
-      InterpolatedDispl += (LaserTracks[PointIndex[vertex_no].first].GetCorrection(PointIndex[vertex_no].second) * BaryCoord[vertex_no]);
-//       std::cout << LaserTracks[PointIndex[vertex_no].first].GetCorrection(PointIndex[vertex_no].second)[0] << " " << LaserTracks[PointIndex[vertex_no].first].GetCorrection(PointIndex[vertex_no].second)[1] << " " << LaserTracks[PointIndex[vertex_no].first].GetCorrection(PointIndex[vertex_no].second)[2] << std::endl;
-//       for(unsigned coord = 0; coord < 3; coord++)  std::cout << (LaserTracks[PointIndex[vertex_no].first].GetCorrection(PointIndex[vertex_no].second)[coord] * BaryCoord[vertex_no]) << " ";
+      InterpolatedDispl += (LaserTrackSet[PointIndex[vertex_no].first].GetCorrection(PointIndex[vertex_no].second) * BaryCoord[vertex_no]);
+//       std::cout << LaserTrackSet[PointIndex[vertex_no].first].GetCorrection(PointIndex[vertex_no].second)[0] << " " << LaserTrackSet[PointIndex[vertex_no].first].GetCorrection(PointIndex[vertex_no].second)[1] << " " << LaserTrackSet[PointIndex[vertex_no].first].GetCorrection(PointIndex[vertex_no].second)[2] << std::endl;
+//       for(unsigned coord = 0; coord < 3; coord++)  std::cout << (LaserTrackSet[PointIndex[vertex_no].first].GetCorrection(PointIndex[vertex_no].second)[coord] * BaryCoord[vertex_no]) << " ";
 //       std::cout << std::endl;
     }
     

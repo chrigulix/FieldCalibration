@@ -43,11 +43,7 @@
 #include "TTreeReader.h"
 #include "TTreeReaderValue.h"
 
-// #include "TTreeReader.h"
-// #include "TTreeReaderValue.h"
-
 // Own Files
-// #include "Geometry.hpp"
 #include "include/LaserTrack.hpp"
 #include "include/ThreeVector.hpp"
 #include "include/TPCVolumeHandler.hpp"
@@ -60,19 +56,14 @@ Laser ReadRecoTracks(int argc, char** argv);
 void LaserInterpThread(Laser&, const Laser&, const Delaunay&);
 void WriteRootFile(std::vector<ThreeVector<float>>&, TPCVolumeHandler&);
 void WriteTextFile(std::vector<ThreeVector<float>>&);
-// void DrawSpaceCharge();
-// void DrawField();
-
-const double kPi = 3.14159265358979323846;
-const float kDetector[] = {2.5604,2.325,10.368}; // Size of the detectors in m (used from docdb 1821)
-const int kResolution[] = {26,26,101}; // Field resolution in every coordinate
-const int kTrackRes = 100; // Number of samples in every laser track
-const int kSqrtNumberOfTracks = 101;
-const float kLaserOffset[3] = {1.5,1.1625,-0.21}; // Laser head offset from field cage in [m]
 
 // Main function
 int main(int argc, char** argv)
 {
+    // Start timer, just because it's nice to know how long shit takes
+    time_t timer;
+    std::time(&timer);
+
     std::cout << argc << std::endl;
     
     // If there are to few input arguments abord
@@ -84,8 +75,8 @@ int main(int argc, char** argv)
 
     // Coose detector dimensions, coordinate system offset and resolutions
     ThreeVector<float> DetectorSize = {256.04,232.5,1036.8};
-    ThreeVector<float> DetectorOffset = {0.0,-DetectorSize[1]/(float)2.0,0.0};
-    ThreeVector<int> DetectorResolution = {26,26,101};
+    ThreeVector<float> DetectorOffset = {0.0,-DetectorSize[1]/static_cast<float>(2.0),0.0};
+    ThreeVector<unsigned long> DetectorResolution = {26,26,101};
    
     // Create the detector volume
     TPCVolumeHandler Detector(DetectorSize, DetectorOffset, DetectorResolution);
@@ -100,160 +91,49 @@ int main(int argc, char** argv)
     
     // Create delaunay mesh
     std::cout << "Generate mesh..." << std::endl;
-    Delaunay TrackMesh = TrackMesher(LaserTrackSet.GetTrackSet());
+    Delaunay Mesh = TrackMesher(LaserTrackSet.GetTrackSet());
     
-    // 
+    // Interpolate Displacement Map (regularly spaced grid)
+    std::vector<ThreeVector<float>> DisplacementMap = InterpolateMap(LaserTrackSet.GetTrackSet(),Mesh,Detector);
     
+    // Fill displacement map into TH3 histograms and write them to file
+    WriteRootFile(DisplacementMap,Detector);
     
-  double HistRange[3][2];
-  for (int coord = 0; coord < 3; coord++) for(int minmax = 0; minmax < 2; minmax++)
-  {
-    HistRange[coord][minmax] = (DetectorSize[coord]+pow(2,-25))*( minmax - pow(-1,minmax)/((double)DetectorResolution[coord]-1.0)/2.0 );
-  }
-  
-//   auto start = std::chrono::high_resolution_clock::now();
-//   auto elapsed = std::chrono::high_resolution_clock::now() - start;
-//   std::cout << "Function Time [ns]: " << std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count() << std::endl;
+//     Detector.GetMapMaximum().print();
+//     Detector.GetMapMinimum().print();
     
-  time_t timer;
-  std::time(&timer);
-  // Enter Functions here:
-//   unsigned BeamBins = 101;
-//   std::array<float,2> LaserAngles_1;
-//   std::array<float,2> LaserAngles_2;
-//   ThreeVector<float> LaserPosition_1 = {1.3,0.0,-0.21};
-//   ThreeVector<float> LaserPosition_2 = {1.3,0.0,Detector.GetDetectorSize().at(2)+ (float)0.21};
-  
-//   std::vector<Laser> LaserTrackSets = ReadMooneyTracks("laserDataSCE.root",Detector);
-  
-//   std::vector<Laser> LaserTrackSets;
-//   LaserTrackSets.resize(2);
-  
-//   std::vector<LaserTrack> TrackVector;
-//   for(unsigned theta_entry = 0; theta_entry < BeamBins; theta_entry++)
+//   double HistRange[3][2];
+//   for (int coord = 0; coord < 3; coord++)
 //   {
-//     LaserAngles_1[0] = -45.0 + 90.0/(float)(BeamBins-1)*theta_entry;
-//     LaserAngles_2[0] = -45.0 + 90.0/(float)(BeamBins-1)*theta_entry;
-//     for(unsigned phi_entry = 0; phi_entry < BeamBins; phi_entry++)
+//       for(int minmax = 0; minmax < 2; minmax++)
+//       {
+//           HistRange[coord][minmax] = (DetectorSize[coord]+pow(2,-25))*( minmax - pow(-1,minmax)/((double)DetectorResolution[coord]-1.0)/2.0 );
+//           std::cout << DetectorOffset[coord]+HistRange[coord][minmax] << " ";
+//       }
+//       std::cout << std::endl;
+//   }
+  
+//   time_t timer;
+//   std::time(&timer);
+// 
+//   std::vector<ThreeVector<float>> Displacement;
+//   
+//   ThreeVector<float> Location;
+//   for(unsigned xbin = 0; xbin < DetectorResolution[0]; xbin++) 
+//   {
+//     std::cout << xbin << std::endl;
+//     Location[0] = DetectorOffset[0]+(HistRange[0][1]-HistRange[0][0])/(float)DetectorResolution[0]*xbin;
+//     for(unsigned ybin = 0; ybin < DetectorResolution[1]; ybin++) 
 //     {
-//       LaserAngles_1[1] = -45 + 90.0/(float)(BeamBins-1)*phi_entry;
-//       LaserAngles_2[1] = -225 + 90.0/(float)(BeamBins-1)*phi_entry;
-      
-//       LaserTrackSets.at(0).AppendTrack(LaserTrack(50, LaserAngles_1, LaserPosition_1, Detector));
-//       LaserTrackSets.at(1).AppendTrack(LaserTrack(50, LaserAngles_2, LaserPosition_2, Detector));
+//       Location[1] = DetectorOffset[1]+(HistRange[1][1]-HistRange[1][0])/(float)DetectorResolution[1]*ybin;
+//       for(unsigned zbin = 0; zbin < DetectorResolution[2]; zbin++)
+//       {
+// 	Location[2] = DetectorOffset[2]+(HistRange[2][1]-HistRange[2][0])/(float)DetectorResolution[2]*zbin;
+// 	Displacement.push_back(InterpolateCGAL(LaserTrackSet.GetTrackSet(),Mesh,Location));
+//       }
 //     }
 //   }
-  
-//   for(auto& laser : LaserTrackSets)
-//   {
-//     laser.DistortTrackSet("Field.root",Detector);
-//   }
-  
-//   std::vector<Delaunay> MeshVector;
-  
-//   for(unsigned set_no = 0; set_no < LaserTrackSets.size(); set_no++)
-//   {
-//     LaserTrackSets.at(set_no).CorrectTrackSet();
-//     MeshVector.push_back( TrackMesher(LaserTrackSets.at(set_no).GetTrackSet()) );
-//   }
-  
-//   LaserTrackSets.front().DrawTrack(1000);
-  
-//   Laser TempLaser_1 = LaserTrackSets.front();
-//   Laser TempLaser_2 = LaserTrackSets.back();
-  
-//   std::cout << "Start 1st track interpolation" << std::endl;
-//   LaserInterpThread(LaserTrackSets.front(),TempLaser_2,MeshVector.back());
-//   std::thread Thread_0( LaserInterpThread, std::ref(LaserTrackSets.front()), std::ref(TempLaser_2), std::ref(MeshVector.back()) );
-  
-//   std::cout << "Start 2nd track interpolation" << std::endl;
-//   LaserInterpThread(LaserTrackSets.back(),TempLaser_1,MeshVector.front());
-//   std::thread Thread_1 ( LaserInterpThread, std::ref(LaserTrackSets.back()), std::ref(TempLaser_1), std::ref(MeshVector.front()) );
-  
-//   Thread_0.join();
-//   Thread_1.join();
-  
-//   for(unsigned track_no = 0; track_no < LaserTrackSets.front().GetNumberOfTracks(); track_no++)
-//   {
-//     InterpolateTrack(LaserTrackSets.front().GetTrack(track_no),LaserTrackSets.back().GetTrackSet(),MeshVector.back());
-//   }
-  
-  
-  
-//   for(unsigned track_no = 0; track_no < LaserTrackSets.back().GetNumberOfTracks(); track_no++)
-//   {
-//     InterpolateTrack(LaserTrackSets.back().GetTrack(track_no),TempLaser.GetTrackSet(),MeshVector.front());
-//   }
-  
-//   std::cout << "Cleanup!" << std::endl;
-  
-//   MeshVector.clear();
-  
-//   std::vector<LaserTrack> TrackVector = LaserTrackSets.back().GetTrackSet();
-//   LaserTrackSets.pop_back();
-//   TrackVector.insert(TrackVector.begin(),LaserTrackSets.front().begin(), LaserTrackSets.front().end());
-//   LaserTrackSets.clear();
-  
-  
-//   std::cout << "Start field map interpolation" << std::endl;
-  
-//   Delaunay Mesh = TrackMesher(TrackVector);
-
-  
-//   for(unsigned iter = 0; iter < TrackVector.size(); iter++)
-//   {
-//     for(unsigned coord = 0; coord < 3; coord++)
-//       std::cout << TrackVector[iter].LaserCorrection[20][coord] << " " << TrackVector[iter].LaserCorrection[20][coord] << " ";
-//     std::cout << std::endl;
-//   }
-
-  std::vector<ThreeVector<float>> Displacement;
-  
-//   std::cout << "Create Mesh..." << std::endl;
-//   Delaunay Mesh_1 = TrackMesher(TrackVector);
-//   std::cout << "Mesh done!" << std::endl;
-  
-//   Point bla(1.0,1.0,3.0);
-//   ThreeVector<float> blabla = {1.0,1.0,3.0};
-//   std::vector<ThreeVector<float>> shit;
-//   shit.push_back(blabla);
-//   Delaunay::Cell_handle Cell =  Mesh.locate(bla);
-  
-//   for(unsigned vertex_no = 0; vertex_no < 4; vertex_no++)
-//   {
-//     std::cout << Cell->vertex(vertex_no)->point()[0] << " " << Cell->vertex(vertex_no)->point()[1] << " " << Cell->vertex(vertex_no)->point()[2] << std::endl;
-//   }
-  
-//   InterpolateCGAL(TrackVector,Mesh,Location);
-  
-//   ThreeVector<float> Location = {1.2,1.0,5.1};
-  
-  ThreeVector<float> Location;
-  for(unsigned xbin = 0; xbin < DetectorResolution[0]; xbin++) 
-  {
-    std::cout << xbin << std::endl;
-    Location[0] = DetectorOffset[0]+(HistRange[0][1]-HistRange[0][0])/(float)DetectorResolution[0]*xbin;
-    for(unsigned ybin = 0; ybin < DetectorResolution[1]; ybin++) 
-    {
-      Location[1] = DetectorOffset[1]+(HistRange[1][1]-HistRange[1][0])/(float)DetectorResolution[1]*ybin;
-      for(unsigned zbin = 0; zbin < DetectorResolution[2]; zbin++)
-      {
-	Location[2] = DetectorOffset[2]+(HistRange[2][1]-HistRange[2][0])/(float)DetectorResolution[2]*zbin;
-	Displacement.push_back(InterpolateCGAL(LaserTrackSet.GetTrackSet(),TrackMesh,Location));
-      }
-    }
-  }
-  
-  WriteRootFile(Displacement,Detector);
-//   WriteTextFile(Displacement);
-  
-//   Displacement = InterpolateCGAL(TrackVector,Mesh,Location);
-//   ThreeVector<float> Location = {1.2,1.0,5.1};
-//   Displacement = InterpolateCGAL(TrackVector,Mesh,Location);
-//   GetClosestTracksInfo(TrackVector,4);
-  
-  std::cout << "End of program after "<< std::difftime(std::time(NULL),timer) << " s" << std::endl;
-//   App->Run();
+    std::cout << "End of program after "<< std::difftime(std::time(NULL),timer) << " s" << std::endl;
 }
 
 Laser ReadRecoTracks(int argc, char** argv)
@@ -346,34 +226,41 @@ void LaserInterpThread(Laser& LaserTrackSet, const Laser& InterpolationLaser, co
 
 void WriteRootFile(std::vector<ThreeVector<float>>& InterpolationData, TPCVolumeHandler& TPCVolume)
 { 
-  double HistRange[3][2];
-  for (int coord = 0; coord < 3; coord++) for(int minmax = 0; minmax < 2; minmax++)
-  {
-    HistRange[coord][minmax] = (TPCVolume.GetDetectorSize()[coord]+pow(2,-25))*( minmax - pow(-1,minmax)/((double)TPCVolume.GetDetectorResolution()[coord]-1.0)/2.0 );
-  }
+    // Store TPC properties which are important for the TH3 generation
+    ThreeVector<unsigned long> Resolution = TPCVolume.GetDetectorResolution();
+    ThreeVector<float> MinimumCoord = TPCVolume.GetMapMinimum();
+    ThreeVector<float> MaximumCoord = TPCVolume.GetMapMaximum();
   
-  ThreeVector<float> DetectorOffset = {0.0,-TPCVolume.GetDetectorSize()[1]/(float)2.0,0.0};
+    // Initialize all TH3F
+    std::vector<TH3F> RecoField;
+    RecoField.push_back(TH3F("Reco_Field_X","Reco Field X",Resolution[0],MinimumCoord[0],MaximumCoord[0],Resolution[1],MinimumCoord[1],MaximumCoord[1],Resolution[2],MinimumCoord[2],MaximumCoord[2]));
+    RecoField.push_back(TH3F("Reco_Field_Y","Reco Field Y",Resolution[0],MinimumCoord[0],MaximumCoord[0],Resolution[1],MinimumCoord[1],MaximumCoord[1],Resolution[2],MinimumCoord[2],MaximumCoord[2]));
+    RecoField.push_back(TH3F("Reco_Field_Z","Reco Field Z",Resolution[0],MinimumCoord[0],MaximumCoord[0],Resolution[1],MinimumCoord[1],MaximumCoord[1],Resolution[2],MinimumCoord[2],MaximumCoord[2]));
   
-  std::vector<TH3F*> RecoField;
-  RecoField.push_back(new TH3F("Reco_Field_X","Reco Field X",TPCVolume.GetDetectorResolution()[0],HistRange[0][0],HistRange[0][1],TPCVolume.GetDetectorResolution()[1],HistRange[1][0],HistRange[1][1],TPCVolume.GetDetectorResolution()[2],HistRange[2][0],HistRange[2][1]));
-  RecoField.push_back(new TH3F("Reco_Field_Y","Reco Field Y",TPCVolume.GetDetectorResolution()[0],HistRange[0][0],HistRange[0][1],TPCVolume.GetDetectorResolution()[1],HistRange[1][0],HistRange[1][1],TPCVolume.GetDetectorResolution()[2],HistRange[2][0],HistRange[2][1]));
-  RecoField.push_back(new TH3F("Reco_Field_Z","Reco Field Z",TPCVolume.GetDetectorResolution()[0],HistRange[0][0],HistRange[0][1],TPCVolume.GetDetectorResolution()[1],HistRange[1][0],HistRange[1][1],TPCVolume.GetDetectorResolution()[2],HistRange[2][0],HistRange[2][1]));
-  
-  
-  for(unsigned xbin = 0; xbin < TPCVolume.GetDetectorResolution()[0]; xbin++) for(unsigned ybin = 0; ybin < TPCVolume.GetDetectorResolution()[1]; ybin++) for(unsigned zbin = 0; zbin < TPCVolume.GetDetectorResolution()[2]; zbin++)
-  {
-    for(unsigned coord = 0; coord < 3; coord++)
+
+    // Loop over all xbins
+    for(unsigned xbin = 0; xbin < TPCVolume.GetDetectorResolution()[0]; xbin++)
     {
-      RecoField[coord]->SetBinContent(xbin+1,ybin+1,zbin+1, InterpolationData[zbin+( TPCVolume.GetDetectorResolution()[2]*(ybin+TPCVolume.GetDetectorResolution()[1]*xbin) )][coord]);
-      std::cout << InterpolationData[zbin+( TPCVolume.GetDetectorResolution()[2]*(ybin+TPCVolume.GetDetectorResolution()[1]*xbin) )][coord] << " ";
-    }
-    std::cout << std::endl;
-  }
+        // Loop over all ybins
+        for(unsigned ybin = 0; ybin < TPCVolume.GetDetectorResolution()[1]; ybin++) 
+        {
+            // Loop over all zbins
+            for(unsigned zbin = 0; zbin < TPCVolume.GetDetectorResolution()[2]; zbin++)
+            {
+                // Loop over all coordinates
+                for(unsigned coord = 0; coord < 3; coord++)
+                {
+                    // Fill interpolated grid points into histograms
+                    RecoField[coord].SetBinContent(xbin+1,ybin+1,zbin+1, InterpolationData[zbin+( TPCVolume.GetDetectorResolution()[2]*(ybin+TPCVolume.GetDetectorResolution()[1]*xbin) )][coord]);
+                } // end coordinate loop
+            } // end zbin loop
+        } // end ybin loop
+    } // end zbin loop
   
   TFile *OutputFile = new TFile("RecoField.root", "recreate");
   for(unsigned coord = 0; coord < RecoField.size(); coord++)
   {
-    RecoField[coord]->Write();
+    RecoField[coord].Write();
   }
   OutputFile -> Close();
   delete OutputFile;
