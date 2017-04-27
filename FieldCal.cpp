@@ -64,8 +64,6 @@ int main(int argc, char** argv)
     time_t timer;
     std::time(&timer);
 
-    std::cout << argc << std::endl;
-    
     // If there are to few input arguments abord
     if(argc < 2)
     {
