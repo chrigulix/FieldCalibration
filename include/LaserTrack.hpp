@@ -39,6 +39,7 @@ private:
   // Displacement algorithms
   void DerivativeDisplAlgo();
   void ClosestPointDisplAlgo();
+  void LinearStretchDisplAlgo();
   
 public:
   LaserTrack();
@@ -52,7 +53,8 @@ public:
   enum DisplacementAlgo
   {
       TrackDerivative,
-      ClosestPoint
+      ClosestPoint,
+      LinearStretch
   };
   
   ThreeVector<float> GetPoyntingVector();

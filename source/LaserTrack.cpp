@@ -177,7 +177,7 @@ void LaserTrack::DerivativeDisplAlgo()
     }
 }
 
-//
+// This algorithm calculates the displacement by projecting the reco samples to the closest point on the true track
 void LaserTrack::ClosestPointDisplAlgo()
 {
     // Initialize scaling parameter for point on true laser beam
@@ -195,6 +195,15 @@ void LaserTrack::ClosestPointDisplAlgo()
         LaserDisplacement[sample_no] = EntryPoint + TrueTrackPara*TrueTrack - LaserReco[sample_no];
     }
 }
+
+// This algorithm uses first the closest point displacement algorithm. Then it shifts the reco points linearly along the true track to equalize the reco and truth track length 
+void LaserTrack::LinearStretchDisplAlgo()
+{
+    ClosestPointDisplAlgo();
+    
+}
+
+
 
 void LaserTrack::DistortTrack(std::string MapFileName, const TPCVolumeHandler& TPCVolume)
 {
