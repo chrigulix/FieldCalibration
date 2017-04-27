@@ -67,9 +67,9 @@ void Draw()
   }
   
   std::vector<TH3F*> ReconstructionMap;
-  ReconstructionMap.push_back((TH3F*) RecoFile->Get("Reco_Field_X"));
-  ReconstructionMap.push_back((TH3F*) RecoFile->Get("Reco_Field_Y"));
-  ReconstructionMap.push_back((TH3F*) RecoFile->Get("Reco_Field_Z"));
+  ReconstructionMap.push_back((TH3F*) RecoFile->Get("Reco_Displacement_X"));
+  ReconstructionMap.push_back((TH3F*) RecoFile->Get("Reco_Displacement_Y"));
+  ReconstructionMap.push_back((TH3F*) RecoFile->Get("Reco_Displacement_Z"));
 //   ReconstructionMap.push_back((TH3F*) RecoFile->Get("Reco_Field_X"));
 
   //   RecoFile->Close();
@@ -152,13 +152,13 @@ void Draw()
     
     TCanvas * C1 = new TCanvas("Reco Map X","Reco Map X",1000,500);
     ProjectionXZ[0] -> Draw("colz");
-    C1 -> Print("RecoX.gif+5","gif+5");
+    C1 -> Print("DisplacementX.gif+5","gif+5");
     TCanvas * C2 = new TCanvas("Reco Map Y","Reco Map Y",1000,500);
     ProjectionXZ[1] -> Draw("colz");
-    C2 -> Print("RecoY.gif+5","gif+5");
+    C2 -> Print("DisplacementY.gif+5","gif+5");
     TCanvas * C3 = new TCanvas("Reco Map Z","Reco Map Z",1000,500);
     ProjectionXZ[2] -> Draw("colz");
-    C3 -> Print("RecoZ.gif+5","gif+5");
+    C3 -> Print("DisplacementZ.gif+5","gif+5");
     
     delete C1;
     delete C2;

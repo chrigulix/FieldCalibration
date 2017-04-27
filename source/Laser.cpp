@@ -53,12 +53,12 @@ void Laser::DistortTrackSet(std::string MapFileName, TPCVolumeHandler& TPCVolume
 }
 
 // Applies correction algorithm on all tracks of a laser track set
-void Laser::CalcDisplacement()
+void Laser::CalcDisplacement(const LaserTrack::DisplacementAlgo& Algo)
 {
     // Loop over all tracks, and calculate displacement
     for(auto& Track : LaserTrackSet)
     {
-        Track.CalcDisplacement();
+        Track.CalcDisplacement(Algo);
     }
 }
 

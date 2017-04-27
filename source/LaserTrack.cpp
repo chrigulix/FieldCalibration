@@ -135,10 +135,6 @@ void LaserTrack::FindBoundaries(const TPCVolumeHandler& TPCVolume)
 	      << "is placed in the chamber!" << std::endl;
   }
   
-//   std::cout << BoundaryPoint.size() << std::endl;
-//   for(auto iter : BoundaryPoint)
-//     std::cout << iter[0] << " " << iter[1] << " " << iter[2] << std::endl;
-  
   // Check order of boundary points and swap if they are in wrong order
   if(BoundaryParameter[0] > BoundaryParameter[1])
   {
@@ -151,6 +147,54 @@ void LaserTrack::FindBoundaries(const TPCVolumeHandler& TPCVolume)
   ExitPoint = BoundaryPoint.back();
 }
 
+// This is the displacement algorithm using the track derivative method
+void LaserTrack::DerivativeDisplAlgo()
+{
+    // Initialize scaling parameter for point on true laser beam
+    float TrueTrackPara;
+  
+    // Only Displacement calculation for intermediate points if there are 3 or more track points
+    if(LaserReco.size() > 2)
+    {
+        // Calculate displacement of all intermediate track samples with the derivative method
+        for(unsigned sample_no = 1; sample_no < LaserReco.size()-1; sample_no++)
+        {
+            // Calculate intersection parameter on the true track (Parameter*TrueTrackVector = IntersectionPoint)
+            TrueTrackPara = ThreeVector<float>::DotProduct(LaserReco[sample_no-1]-LaserReco[sample_no+1],LaserReco[sample_no]-EntryPoint)
+                          / ThreeVector<float>::DotProduct(LaserReco[sample_no-1]-LaserReco[sample_no+1],ExitPoint-EntryPoint);
+            
+            // Calculate vector between IntersectionPoint and LaserRecoPoint, which is the displacement vector
+            LaserDisplacement[sample_no] = EntryPoint + TrueTrackPara*(ExitPoint-EntryPoint) - LaserReco[sample_no];
+        }
+    } // end if
+    
+    // If there are two and more points, shift entry and exit point to true position 
+    if(LaserReco.size() > 1)
+    {
+        // Displacement for first and last track samples
+        LaserDisplacement.front() =  EntryPoint - LaserReco.front();
+        LaserDisplacement.back() =  ExitPoint - LaserReco.back();
+    }
+}
+
+//
+void LaserTrack::ClosestPointDisplAlgo()
+{
+    // Initialize scaling parameter for point on true laser beam
+    float TrueTrackPara;
+    
+    // Vector which points from entry to exit point
+    ThreeVector<float> TrueTrack = ExitPoint - EntryPoint;
+    
+    for(unsigned sample_no = 0; sample_no < LaserReco.size(); sample_no++)
+    {
+        // Calculate parameter corresponding to the closest distance between true track and reco track sample
+        TrueTrackPara = ThreeVector<float>::DotProduct(LaserReco[sample_no]-EntryPoint,TrueTrack) / ThreeVector<float>::DotProduct(TrueTrack,TrueTrack);
+        
+        // Calculate displacement
+        LaserDisplacement[sample_no] = EntryPoint + TrueTrackPara*TrueTrack - LaserReco[sample_no];
+    }
+}
 
 void LaserTrack::DistortTrack(std::string MapFileName, const TPCVolumeHandler& TPCVolume)
 {
@@ -194,32 +238,15 @@ void LaserTrack::DistortTrack(std::string MapFileName, const TPCVolumeHandler& T
 }
 
 // This function calculates the track displacement
-void LaserTrack::CalcDisplacement()
+void LaserTrack::CalcDisplacement(const DisplacementAlgo& Algo)
 {
-    // Initialize scaling parameter for point on true laser beam
-    float TrueTrackPara;
-  
-    // Only Displacement calculation for intermediate points if there are 3 or more track points
-    if(LaserReco.size() > 2)
+    // Switch to chosen displacement algorithm.
+    // In case you add algorithms introduce more cases
+    switch(Algo)
     {
-        // Calculate displacement of all intermediate track samples with the derivative method
-        for(unsigned sample_no = 1; sample_no < LaserReco.size()-1; sample_no++)
-        {
-            // Calculate intersection parameter on the true track (Parameter*TrueTrackVector = IntersectionPoint)
-            TrueTrackPara = ThreeVector<float>::DotProduct(LaserReco[sample_no-1]-LaserReco[sample_no+1],LaserReco[sample_no]-EntryPoint)
-		          / ThreeVector<float>::DotProduct(LaserReco[sample_no-1]-LaserReco[sample_no+1],ExitPoint-EntryPoint);
-            
-            // Calculate vector between IntersectionPoint and LaserRecoPoint, which is the displacement vector
-            LaserDisplacement[sample_no] = EntryPoint + TrueTrackPara*(ExitPoint-EntryPoint) - LaserReco[sample_no];
-        }
-    } // end if
-    
-    // If there are two and more points, shift entry and exit point to true position 
-    if(LaserReco.size() > 1)
-    {
-        // Displacement for first and last track samples
-        LaserDisplacement.front() =  EntryPoint - LaserReco.front();
-        LaserDisplacement.back() =  ExitPoint - LaserReco.back();
+        case TrackDerivative : DerivativeDisplAlgo(); break;
+        case ClosestPoint : ClosestPointDisplAlgo(); break;
+        default : DerivativeDisplAlgo(); break;
     }
 }
 

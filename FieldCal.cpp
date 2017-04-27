@@ -77,7 +77,7 @@ int main(int argc, char** argv)
     ThreeVector<float> DetectorSize = {256.04,232.5,1036.8};
     ThreeVector<float> DetectorOffset = {0.0,-DetectorSize[1]/static_cast<float>(2.0),0.0};
     ThreeVector<unsigned long> DetectorResolution = {26,26,101};
-   
+    
     // Create the detector volume
     TPCVolumeHandler Detector(DetectorSize, DetectorOffset, DetectorResolution);
     
@@ -87,7 +87,8 @@ int main(int argc, char** argv)
     
     // Calculate track displacement
     std::cout << "Find track displacements... " << std::endl;
-    LaserTrackSet.CalcDisplacement();
+    // Choose displacement algorithm (available so far: TrackDerivative or ClosestPoint)
+    LaserTrackSet.CalcDisplacement(LaserTrack::ClosestPoint);
     
     // Add displacement to reconstructed track to change to detector coordinates (only for map generation)
     LaserTrackSet.AddDisplToReco();

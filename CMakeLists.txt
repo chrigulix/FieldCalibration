@@ -1,6 +1,11 @@
 #----------------------------------------------------------------------------
 # Setup the project
+#
+project(FieldCalibration C CXX)
+
+#----------------------------------------------------------------------------
 # cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
+#
 cmake_minimum_required(VERSION 2.6.2)
 if("${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}" VERSION_GREATER 2.6)
   if("${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}.${CMAKE_PATCH_VERSION}" VERSION_GREATER 2.8.3)
@@ -9,9 +14,6 @@ if("${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}" VERSION_GREATER 2.6)
     cmake_policy(VERSION 2.6)
   endif()
 endif()
-
-
-project(FieldCalibration C CXX)
 
 #----------------------------------------------------------------------------
 # Use C++11 extention and O3 optimization (-founding-math because of CGAL)
@@ -39,6 +41,7 @@ add_definitions(${ROOT_CXX_FLAGS})
 
 #----------------------------------------------------------------------------
 # Find package for multi-threading
+#
 find_package (Threads)
 
 #----------------------------------------------------------------------------

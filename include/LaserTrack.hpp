@@ -22,7 +22,6 @@
 
 class LaserTrack
 {
-// public:
 private:
   unsigned NumberOfTracksegments;
   std::array<float,2> TrackAngles;
@@ -37,6 +36,10 @@ private:
   void FillTrack();
   void FindBoundaries(const TPCVolumeHandler&);
   
+  // Displacement algorithms
+  void DerivativeDisplAlgo();
+  void ClosestPointDisplAlgo();
+  
 public:
   LaserTrack();
   
@@ -44,10 +47,17 @@ public:
   LaserTrack(const TVector3& InEntryPoint, const TVector3& InExitPoint, const std::vector<TVector3>& RecoTrack);
   LaserTrack(std::array<float,2>&, ThreeVector<float>&, const TPCVolumeHandler&);
   LaserTrack(const unsigned int,std::array<float,2>&, ThreeVector<float>&, const TPCVolumeHandler&);
+
+  // Displacement Algorithm names. Add new algorithm name if new algo is introduced
+  enum DisplacementAlgo
+  {
+      TrackDerivative,
+      ClosestPoint
+  };
   
   ThreeVector<float> GetPoyntingVector();
   void DistortTrack(std::string, const TPCVolumeHandler&);
-  void CalcDisplacement();
+  void CalcDisplacement(const DisplacementAlgo& Algo);
   void AddDisplToReco();
   void AddToDisplacement(ThreeVector<float>&, unsigned long);
   
@@ -63,7 +73,7 @@ public:
   void AppendSample(float SamplePos_x, float SamplePos_y, float SamplePos_z, float SampleCorr_x, float SampleCorr_y, float SampleCorr_z);
   void AppendSample(float,float,float);
   
-  static void DistortTracks(std::vector<LaserTrack>&, const std::string&, const TPCVolumeHandler&);  
+  static void DistortTracks(std::vector<LaserTrack>&, const std::string&, const TPCVolumeHandler&);
 };
 
 #endif
