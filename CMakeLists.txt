@@ -14,8 +14,9 @@ endif()
 project(FieldCalibration C CXX)
 
 #----------------------------------------------------------------------------
-# Use C++11 extention
+# Use C++11 extention and O3 optimization (-founding-math because of CGAL)
 #
+set(CMAKE_CXX_FLAGS "-O3 -frounding-math")
 add_definitions("-std=c++11")
 
 #----------------------------------------------------------------------------
