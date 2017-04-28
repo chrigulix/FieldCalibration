@@ -30,7 +30,9 @@ public:
   std::vector<LaserTrack>::iterator begin();
   std::vector<LaserTrack>::iterator end();
   
-  void AppendTrack(const LaserTrack&);
+  void AppendTrack(const LaserTrack& InputTrack);
+  static Laser Merge(std::vector<Laser>& LaserVec);
+  
   LaserTrack GetTrack(const unsigned long int&);
   LaserTrack GetLastTrack();
   LaserTrack GetFirstTrack();

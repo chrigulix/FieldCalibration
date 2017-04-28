@@ -22,6 +22,21 @@ void Laser::AppendTrack(const LaserTrack& InputTrack)
   LaserTrackSet.push_back(InputTrack);
 }
 
+// Merges a vector of Lasers into one Laser object
+Laser Laser::Merge(std::vector<Laser>& LaserVec)
+{
+    // Initialize output of type Laser
+    Laser MergedLaserSets;
+    
+    // Loop over all input vector entries
+    for(unsigned long index = 0; index < LaserVec.size(); index++)
+    {
+        MergedLaserSets.LaserTrackSet.insert(MergedLaserSets.LaserTrackSet.end(),LaserVec.at(index).LaserTrackSet.begin(),LaserVec.at(index).LaserTrackSet.end());
+    }
+    
+    LaserVec.clear();
+}
+
 LaserTrack Laser::GetTrack(const long unsigned int& TrackNumber)
 {
   LaserTrackSet.at(TrackNumber);
