@@ -152,6 +152,9 @@ void LaserTrack::DerivativeDisplAlgo()
 {
     // Initialize scaling parameter for point on true laser beam
     float TrueTrackPara;
+    
+    // Vector which points from entry to exit point
+    ThreeVector<float> TrueTrack = ExitPoint - EntryPoint;
   
     // Only Displacement calculation for intermediate points if there are 3 or more track points
     if(LaserReco.size() > 2)
@@ -161,10 +164,10 @@ void LaserTrack::DerivativeDisplAlgo()
         {
             // Calculate intersection parameter on the true track (Parameter*TrueTrackVector = IntersectionPoint)
             TrueTrackPara = ThreeVector<float>::DotProduct(LaserReco[sample_no-1]-LaserReco[sample_no+1],LaserReco[sample_no]-EntryPoint)
-                          / ThreeVector<float>::DotProduct(LaserReco[sample_no-1]-LaserReco[sample_no+1],ExitPoint-EntryPoint);
+                          / ThreeVector<float>::DotProduct(LaserReco[sample_no-1]-LaserReco[sample_no+1],TrueTrack);
             
             // Calculate vector between IntersectionPoint and LaserRecoPoint, which is the displacement vector
-            LaserDisplacement[sample_no] = EntryPoint + TrueTrackPara*(ExitPoint-EntryPoint) - LaserReco[sample_no];
+            LaserDisplacement[sample_no] = LaserReco[sample_no] - (EntryPoint + TrueTrackPara*TrueTrack);
         }
     } // end if
     
@@ -172,8 +175,8 @@ void LaserTrack::DerivativeDisplAlgo()
     if(LaserReco.size() > 1)
     {
         // Displacement for first and last track samples
-        LaserDisplacement.front() =  EntryPoint - LaserReco.front();
-        LaserDisplacement.back() =  ExitPoint - LaserReco.back();
+        LaserDisplacement.front() = LaserReco.front() - EntryPoint;
+        LaserDisplacement.back() = LaserReco.back() - ExitPoint;
     }
 }
 
@@ -192,17 +195,52 @@ void LaserTrack::ClosestPointDisplAlgo()
         TrueTrackPara = ThreeVector<float>::DotProduct(LaserReco[sample_no]-EntryPoint,TrueTrack) / ThreeVector<float>::DotProduct(TrueTrack,TrueTrack);
         
         // Calculate displacement
-        LaserDisplacement[sample_no] = EntryPoint + TrueTrackPara*TrueTrack - LaserReco[sample_no];
+        LaserDisplacement[sample_no] = LaserReco[sample_no] - (EntryPoint + TrueTrackPara*TrueTrack) ;
     }
 }
 
 // This algorithm uses first the closest point displacement algorithm. Then it shifts the reco points linearly along the true track to equalize the reco and truth track length 
 void LaserTrack::LinearStretchDisplAlgo()
 {
+    // Execute closest point algorithm
     ClosestPointDisplAlgo();
     
+    // Vector which points from entry to exit point
+    ThreeVector<float> TrueTrack = ExitPoint - EntryPoint;
+    
+    // Stretch vector for every sample
+    std::vector<ThreeVector<float>> Stretch;
+    Stretch.reserve(GetNumberOfSamples());
+    
+    // Initialize vector with corrected points
+    std::vector<ThreeVector<float>> Corrected = LaserReco;
+    
+    // Loop over all samples of corrected
+    for(unsigned long sample = 0; sample < Corrected.size(); sample++)
+    {
+        Corrected[sample] -= LaserDisplacement[sample];
+    }
+    
+    // Calculate EntryPoint and ExitPoint shift
+    float EntryPointShift = ThreeVector<float>::DotProduct(TrueTrack.GetUnitVector(),EntryPoint - Corrected.front());
+    float ExitPointShift = ThreeVector<float>::DotProduct(TrueTrack.GetUnitVector(),ExitPoint - Corrected.back());
+    
+    // Loop over all track samples (needs to be seperate, in order to not interfere with the stretch result)
+    for(unsigned long sample = 0; sample < Corrected.size(); sample++)
+    {
+        // Calculate the stretch for every sample point
+        Stretch.push_back( (ExitPointShift - EntryPointShift) / ThreeVector<float>::VectorNorm(Corrected.back() - Corrected.front()) * (Corrected.front()-Corrected[sample]) 
+                          - EntryPointShift*TrueTrack.GetUnitVector() );
+    }
+    
+    // Loop over all track samples
+    for(unsigned long sample = 0; sample < GetNumberOfSamples(); sample++)
+    {
+        // Add stretch correction (subtract stretch displacement) to existing displacement
+        LaserDisplacement[sample] -= Stretch[sample];
+    }
+    
 }
-
 
 
 void LaserTrack::DistortTrack(std::string MapFileName, const TPCVolumeHandler& TPCVolume)
@@ -255,18 +293,20 @@ void LaserTrack::CalcDisplacement(const DisplacementAlgo& Algo)
     {
         case TrackDerivative : DerivativeDisplAlgo(); break;
         case ClosestPoint : ClosestPointDisplAlgo(); break;
+        case LinearStretch : LinearStretchDisplAlgo(); break;
         default : DerivativeDisplAlgo(); break;
     }
 }
 
-// Add displacement to the reco position. This is important for generating a displacement map in non-distorted detector coordinates
-void LaserTrack::AddDisplToReco()
+// Add correction to the reco position (correction is the negative displacement). 
+// This is important for generating a displacement map in non-distorted detector coordinates.
+void LaserTrack::AddCorrectionToReco()
 {
     // Loop over track points
     for(unsigned long sample = 0; sample < LaserReco.size(); sample++)
     {
         // Add displacement to reconstructed track position
-        LaserReco[sample] += LaserDisplacement.at(sample);
+        LaserReco[sample] -= LaserDisplacement[sample];
     }
 }
 

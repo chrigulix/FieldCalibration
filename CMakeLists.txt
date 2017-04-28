@@ -79,5 +79,5 @@ target_link_libraries(FieldCal ${ROOT_LIBRARIES} ${CGAL_LIBRARIES} ${CMAKE_THREA
 #----------------------------------------------------------------------------
 # Install the executable to 'bin' directory under CMAKE_INSTALL_PREFIX
 #
-install(TARGETS FieldCal DESTINATION bin)
+install(TARGETS FieldCal DESTINATION ${CMAKE_SOURCE_DIR}/bin)
 

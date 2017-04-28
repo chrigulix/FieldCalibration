@@ -60,7 +60,7 @@ public:
   ThreeVector<float> GetPoyntingVector();
   void DistortTrack(std::string, const TPCVolumeHandler&);
   void CalcDisplacement(const DisplacementAlgo& Algo);
-  void AddDisplToReco();
+  void AddCorrectionToReco();
   void AddToDisplacement(ThreeVector<float>&, unsigned long);
   
   ThreeVector<float> GetLaserPosition();

@@ -56,9 +56,11 @@ public:
   
   // Vector operations non-static
   ValueType GetNorm() const;
+  ThreeVector<ValueType> GetUnitVector() const;
   
   // Vector operations as static functions
-  static ValueType VectorNorm(const ThreeVector<ValueType>&);
+  static ValueType VectorNorm(const ThreeVector<ValueType>& InputVector);
+  static ThreeVector<ValueType> UnitVector(const ThreeVector<ValueType>& InputVector);
   static ThreeVector<ValueType> VectorProduct(const ThreeVector<ValueType>&, const ThreeVector<ValueType>&);
   static ValueType DotProduct(const ThreeVector<ValueType>&, const ThreeVector<ValueType>&);
   

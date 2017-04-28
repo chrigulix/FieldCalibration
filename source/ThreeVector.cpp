@@ -143,9 +143,21 @@ ValueType ThreeVector<ValueType>::GetNorm() const
 }
 
 template<typename ValueType>
+ThreeVector<ValueType> ThreeVector<ValueType>::GetUnitVector() const
+{
+    return *this / GetNorm();
+}
+
+template<typename ValueType>
 ValueType ThreeVector<ValueType>::VectorNorm(const ThreeVector<ValueType>& vec_input)
 {
   return vec_input.GetNorm();
+}
+
+template<typename ValueType>
+ThreeVector<ValueType> ThreeVector<ValueType>::UnitVector(const ThreeVector<ValueType>& vec_input)
+{
+  return vec_input.GetUnitVector();
 }
 
 template<typename ValueType>
