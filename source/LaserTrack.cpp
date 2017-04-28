@@ -379,3 +379,11 @@ void LaserTrack::DistortTracks(std::vector<LaserTrack>& LaserTracks, const std::
   delete FieldFile;
   gDirectory->GetList()->Delete();
 }
+
+ThreeVector<float> LaserTrack::GetFront() const {
+    return LaserReco.front();
+}
+
+ThreeVector<float> LaserTrack::GetBack() const {
+    return LaserReco.back();
+}

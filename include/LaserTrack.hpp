@@ -70,6 +70,8 @@ public:
   ThreeVector<float> GetDisplacement(const unsigned int&) const;
   ThreeVector<float> GetEntryPoint();
   ThreeVector<float> GetExitPoint();
+  ThreeVector<float> GetFront() const;
+  ThreeVector<float> GetBack() const;
   void AppendSample(ThreeVector<float>& SamplePosition, ThreeVector<float>& SampleDisplacement);
   void AppendSample(ThreeVector<float>&);
   void AppendSample(float SamplePos_x, float SamplePos_y, float SamplePos_z, float SampleCorr_x, float SampleCorr_y, float SampleCorr_z);
