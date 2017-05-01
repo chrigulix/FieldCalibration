@@ -265,7 +265,4 @@ void WriteTextFile(std::vector<ThreeVector<float>>& InterpolationData)
 void LaserInterpThread(Laser& LaserTrackSet, const Laser& InterpolationLaser, const Delaunay& InterpolationMesh)
 {
   LaserTrackSet.InterpolateTrackSet(InterpolationLaser, InterpolationMesh);
-} // LaserInterpThread
-
-// Split the laser track set into tracks that reached the expected exit point (within a configurable region) and others.
-// First entry of the return vector is tracks that reach the exit point, second is the ones that do not reach it.
+} // LaserInterpThread  
