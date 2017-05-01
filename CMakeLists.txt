@@ -77,7 +77,7 @@ if(TESTING)
   add_library(fieldcal SHARED ${SOURCE_FILES} )
 endif()
 
-add_executable(FieldCal FieldCal.cpp ${SOURCE_FILES} tests/test_template.cpp)
+add_executable(FieldCal FieldCal.cpp ${SOURCE_FILES})
 target_link_libraries(FieldCal ${ROOT_LIBRARIES} ${CGAL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 #----------------------------------------------------------------------------
