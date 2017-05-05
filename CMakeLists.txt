@@ -3,6 +3,9 @@
 #
 project(FieldCalibration C CXX)
 
+# An option to enable testing, enable it with "cmake blabla -DTESTING=On"
+option(TESTING "Testing" OFF)
+
 #----------------------------------------------------------------------------
 # cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 #
@@ -18,7 +21,11 @@ endif()
 #----------------------------------------------------------------------------
 # Use C++11 extention and O3 optimization (-founding-math because of CGAL)
 #
-set(CMAKE_CXX_FLAGS "-O3 -frounding-math")
+if (APPLE)
+  message(STATUS "No optimization for mac :-)")
+else()
+  set(CMAKE_CXX_FLAGS "-O3 -frounding-math")
+endif()
 add_definitions("-std=c++11")
 
 #----------------------------------------------------------------------------
@@ -47,19 +54,40 @@ find_package (Threads)
 #----------------------------------------------------------------------------
 # Add sources and headers
 #
-set(SOURCE_FILES source/Laser.cpp source/LaserTrack.cpp source/Laser.cpp source/Matrix3x3.cpp source/TPCVolumeHandler source/Interpolation3D.cpp)
-set(HEADER_FILES include/Laser.hpp include/LaserTrack.hpp include/Laser.hpp include/ThreeVector.hpp include/Matrix3x3.hpp include/TPCVolumeHandler include/Interpolation3D.hpp)
+include_directories(./include)
+
+set(SOURCE_FILES
+        source/Laser.cpp
+        source/LaserTrack.cpp
+        source/Laser.cpp
+        source/Matrix3x3.cpp
+        source/TPCVolumeHandler
+        source/Interpolation3D.cpp
+        source/Utilities.cpp
+        )
+
+#set(HEADER_FILES include/Laser.hpp include/LaserTrack.hpp include/Laser.hpp include/ThreeVector.hpp include/Matrix3x3.hpp include/TPCVolumeHandler include/Interpolation3D.hpp source/Utilities.cpp include/Utilities.hpp)
 
 #----------------------------------------------------------------------------
 # Locate sources and headers for this project
 #
-include_directories(${ROOT_INCLUDE_DIR})
+if (APPLE)
+  message(STATUS "So Yifan is trying somethings.")
+  execute_process(COMMAND "root-config" "--incdir" OUTPUT_VARIABLE rootinc RESULT_VARIABLE rs)
+  include_directories(${rootinc})
+else()
+  include_directories(${ROOT_INCLUDE_DIR})
+endif()
 
 
 #----------------------------------------------------------------------------
-# Add the executable, and link it to the Geant4 libraries
+# Add the executable, and link it to the necessary libraries
 #
-add_executable(FieldCal FieldCal.cpp ${HEADER_FILES} ${SOURCE_FILES} )
+if(TESTING)
+  add_library(fieldcal SHARED ${SOURCE_FILES} )
+endif()
+
+add_executable(FieldCal FieldCal.cpp ${SOURCE_FILES})
 target_link_libraries(FieldCal ${ROOT_LIBRARIES} ${CGAL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 #----------------------------------------------------------------------------
@@ -76,8 +104,21 @@ target_link_libraries(FieldCal ${ROOT_LIBRARIES} ${CGAL_LIBRARIES} ${CMAKE_THREA
 #endforeach()
 
 
+# Testing stuff
+if(TESTING)
+  find_package(GTest REQUIRED)
+  if( GTEST_FOUND )
+    enable_testing()
+    add_subdirectory(tests)
+  else()
+    message(STATUS "Cannot find GTest, which is required if testing is enabled. Either install GTest or disable
+            Testing again.")
+  endif()
+endif()
+
 #----------------------------------------------------------------------------
 # Install the executable to 'bin' directory under CMAKE_INSTALL_PREFIX
 #
 install(TARGETS FieldCal DESTINATION ${CMAKE_SOURCE_DIR}/bin)
+#install(TARGETS fieldcal DESTINATION ${CMAKE_SOURCE_DIR}/lib )
 

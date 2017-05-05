@@ -269,22 +269,3 @@ void LaserInterpThread(Laser& LaserTrackSet, const Laser& InterpolationLaser, co
 
 // Split the laser track set into tracks that reached the expected exit point (within a configurable region) and others.
 // First entry of the return vector is tracks that reach the exit point, second is the ones that do not reach it.
-std::vector<Laser> ReachedExitPoint(const Laser& LaserSet, float MaxDeviation) {
-
-    std::vector<Laser> Selection;
-    Selection.resize(2);
-
-    for(auto& Track : LaserSet.GetTrackSet())
-    {
-        auto Residual = Track.GetExitPoint() - Track.GetBack();
-        auto Distance = Residual.GetNorm();
-
-        if (Distance < MaxDeviation) {
-            Selection.front().AppendTrack(Track);
-        }
-        else {
-            Selection.back().AppendTrack(Track);
-        }
-    }
-    return Selection;
-}
