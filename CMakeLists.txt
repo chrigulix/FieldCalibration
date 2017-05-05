@@ -21,7 +21,11 @@ endif()
 #----------------------------------------------------------------------------
 # Use C++11 extention and O3 optimization (-founding-math because of CGAL)
 #
-set(CMAKE_CXX_FLAGS "-O3 -frounding-math")
+if (APPLE)
+  message(STATUS "No optimization for mac :-)")
+else()
+  set(CMAKE_CXX_FLAGS "-O3 -frounding-math")
+endif()
 add_definitions("-std=c++11")
 
 #----------------------------------------------------------------------------
@@ -67,7 +71,13 @@ set(SOURCE_FILES
 #----------------------------------------------------------------------------
 # Locate sources and headers for this project
 #
-include_directories(${ROOT_INCLUDE_DIR})
+if (APPLE)
+  message(STATUS "So Yifan is trying somethings.")
+  execute_process(COMMAND "root-config" "--incdir" OUTPUT_VARIABLE rootinc RESULT_VARIABLE rs)
+  include_directories(${rootinc})
+else()
+  include_directories(${ROOT_INCLUDE_DIR})
+endif()
 
 
 #----------------------------------------------------------------------------
