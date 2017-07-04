@@ -58,6 +58,10 @@ void WriteTextFile(std::vector<ThreeVector<float>>&);
 void LaserInterpThread(Laser&, const Laser&, const Delaunay&);
 std::vector<Laser> ReachedExitPoint(const Laser&, float);
 
+// Set if the output displacement map is correction map (on reconstructed coordinate) or distortion map (on true coordinate)
+// By default set it as correction map so we could continue calculate the E field map
+bool CorrMapFlag = true;
+
 // Main function
 int main(int argc, char** argv)
 {
@@ -86,11 +90,28 @@ int main(int argc, char** argv)
     
     // Calculate track displacement
     std::cout << "Find track displacements... " << std::endl;
-    // Choose displacement algorithm (available so far: TrackDerivative, ClosestPoint, or LinearStretch)
-    LaserTrackSet.CalcDisplacement(LaserTrack::LinearStretch);
-    
-    // Add displacement to reconstructed track to change to detector coordinates (only for map generation)
-    LaserTrackSet.AddCorrectionToReco();
+
+    if(CorrMapFlag){
+        // Choose displacement algorithm (available so far: TrackDerivative, ClosestPoint, or LinearStretch)
+        // Suggestion: stay with ClosestPoint Algorithm
+        LaserTrackSet.CalcDisplacement(LaserTrack::ClosestPoint);
+
+        // Now the laser data are based on the reconstructed coordinate. For CORRECTION MAP, they are good enough.
+        // No need to prepare to set true coordinate
+    }
+
+    // Caculating now the displacement map of distortion based on the true coordinates
+    // Remember to turn the "CorrMapFlag" off
+    else {
+        // Choose displacement algorithm (available so far: TrackDerivative, ClosestPoint, or LinearStretch)
+        // Suggestion: stay with ClosestPoint Algorithm
+        LaserTrackSet.CalcDisplacement(LaserTrack::ClosestPoint);
+
+        // Now the laser tracks are based on the reconstructed coordinate. If require DISTORTION MAP as output, set the base on the true coordinate
+        // Add displacement to reconstructed track to change to detector coordinates (only for map generation)
+        LaserTrackSet.AddCorrectionToReco();
+    }
+
     
     // Create delaunay mesh
     std::cout << "Generate mesh..." << std::endl;

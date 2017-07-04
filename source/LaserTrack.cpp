@@ -181,7 +181,7 @@ void LaserTrack::DerivativeDisplAlgo()
 }
 
 // This algorithm calculates the displacement by projecting the reco samples to the closest point on the true track
-void LaserTrack::ClosestPointDisplAlgo()
+void LaserTrack::ClosestPointDisplAlgo(bool CorrMapFlag = true)
 {
     // Initialize scaling parameter for point on true laser beam
     float TrueTrackPara;
@@ -195,12 +195,18 @@ void LaserTrack::ClosestPointDisplAlgo()
         TrueTrackPara = ThreeVector<float>::DotProduct(LaserReco[sample_no]-EntryPoint,TrueTrack) / ThreeVector<float>::DotProduct(TrueTrack,TrueTrack);
         
         // Calculate displacement
-        LaserDisplacement[sample_no] = LaserReco[sample_no] - (EntryPoint + TrueTrackPara*TrueTrack) ;
+        if(CorrMapFlag){
+            LaserDisplacement[sample_no] =  (EntryPoint + TrueTrackPara*TrueTrack) - LaserReco[sample_no] ;
+        }
+        else{
+            LaserDisplacement[sample_no] =  LaserReco[sample_no] - (EntryPoint + TrueTrackPara*TrueTrack) ;
+        }
     }
 }
 
+// Warning: There's some problem with this algorithm...
 // This algorithm uses first the closest point displacement algorithm. Then it shifts the reco points linearly along the true track to equalize the reco and truth track length 
-void LaserTrack::LinearStretchDisplAlgo()
+void LaserTrack::LinearStretchDisplAlgo(bool CorrMapFlag = true)
 {
     // Execute closest point algorithm
     ClosestPointDisplAlgo();
@@ -266,7 +272,7 @@ void LaserTrack::DistortTrack(std::string MapFileName, const TPCVolumeHandler& T
   {
     for(unsigned coord = 0; coord < LaserReco[segment].size(); coord++)
     {
-      if(InterpolDistortion = DistortMap[coord]->Interpolate(LaserReco[segment][0],LaserReco[segment][1]+TPCVolume.GetDetectorSize()[1]/(float)2.0,LaserReco[segment][2]))
+      if(InterpolDistortion == DistortMap[coord]->Interpolate(LaserReco[segment][0],LaserReco[segment][1]+TPCVolume.GetDetectorSize()[1]/(float)2.0,LaserReco[segment][2]))
       {
 	LaserReco[segment][coord] += InterpolDistortion;
       }
@@ -294,7 +300,7 @@ void LaserTrack::CalcDisplacement(const DisplacementAlgo& Algo)
         case TrackDerivative : DerivativeDisplAlgo(); break;
         case ClosestPoint : ClosestPointDisplAlgo(); break;
         case LinearStretch : LinearStretchDisplAlgo(); break;
-        default : DerivativeDisplAlgo(); break;
+        default : ClosestPointDisplAlgo(); break;
     }
 }
 

@@ -32,6 +32,13 @@ typedef CGAL::Triangulation_data_structure_3<Vb> Tds;
 typedef CGAL::Delaunay_triangulation_3< InterpKernel, Tds > Delaunay;
 typedef Delaunay::Point Point;
 
+/////////////////???????
+//typedef CGAL::Triangulation_vertex_base_with_info_3<std::array<int, 3>, InterpKernel> xVb;
+//typedef CGAL::Triangulation_data_structure_3<xVb> xTds;
+//typedef CGAL::Delaunay_triangulation_3< InterpKernel, xTds > xDelaunay;
+//typedef xDelaunay::Point xPoint;
+/////////////////???????
+
 std::vector<std::pair<unsigned,float>> GetClosestTracksInfo(std::vector<LaserTrack>&,const unsigned);
 std::vector<std::pair<unsigned int, unsigned int>> GetClosestLaserSample(std::vector<LaserTrack>&, const unsigned);
 std::array<float,2> AnglesFromPoynting(ThreeVector<float>&);
