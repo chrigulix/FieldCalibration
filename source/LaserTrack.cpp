@@ -89,10 +89,6 @@ void LaserTrack::FindBoundaries(const TPCVolumeHandler& TPCVolume)
   for(unsigned NSurface = 0; NSurface < SurfaceNormVec.size(); NSurface++)
   {
     float IntersecParameter;
-    if(ThreeVector<float>::DotProduct(SurfaceNormVec[NSurface],Poynting) != 0.0)
-      IntersecParameter = -ThreeVector<float>::DotProduct(SurfaceNormVec[NSurface],LaserPosition-NormVecOffset[NSurface]) / ThreeVector<float>::DotProduct(SurfaceNormVec[NSurface],Poynting);
-    else
-      IntersecParameter = -0xDEADBEEF;
     
     // Calculate the intersection point (UnitVector is added and suptracted to prevent rounding errors)
     ThreeVector<float> IntersecPoint = LaserPosition + Poynting * IntersecParameter;
