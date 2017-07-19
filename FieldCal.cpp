@@ -132,6 +132,7 @@ int main(int argc, char** argv) {
 
     //-------------------------------------
     // Start the session to calculate E map
+    // The vector of Position and En must have the exactly the same index to make EInterpolateMap() work
     std::vector<ThreeVector<float>> Position = Eposition(Detector);
     std::vector<ThreeVector<float>> En = Elocal(Detector);
 
@@ -141,7 +142,7 @@ int main(int argc, char** argv) {
 
     // Interpolate E Map (regularly spaced grid)
     std::cout << "Start interpolation the E field..." << std::endl;
-    std::vector<ThreeVector<float>> EMap = EInterpolateMap(Position, EMesh, Detector);
+    std::vector<ThreeVector<float>> EMap = EInterpolateMap(En, Position, EMesh, Detector);
 
     // Fill displacement map into TH3 histograms and write them to file
     std::cout << "Write Emap to File ..." << std::endl;
@@ -374,18 +375,23 @@ std::vector<ThreeVector<float>> Elocal(TPCVolumeHandler& TPCVolume)
             for(unsigned xbin = 0; xbin < (TPCVolume.GetDetectorResolution()[0]-1); xbin++)
             {//xbin =1, x=5 close to the anode; xbin = Nx, x=250 close to the cathode
                 // the coner has the weight of the bin, do not move the weight to the geometry center!
-                ThreeVector<float> RecoGrid(xbin * DetectorReso[0],ybin*DetectorReso[1],zbin * DetectorReso[2]);
+                ThreeVector<float> RecoGrid(xbin * DetectorReso[0],ybin*DetectorReso[1]+TPCVolume.GetDetectorOffset()[1],zbin * DetectorReso[2]);
                 ThreeVector<float> Dxyz = {(float) Dx->GetBinContent(xbin+1,ybin+1,zbin+1), (float) Dy->GetBinContent(xbin+1,ybin+1,zbin+1), (float) Dz->GetBinContent(xbin+1,ybin+1,zbin+1)};
                 ThreeVector<float> True = RecoGrid + Dxyz;
 
-                ThreeVector<float> RecoGrid_next((xbin+1)*DetectorReso[0],ybin*DetectorReso[1],zbin*DetectorReso[2]);
+                ThreeVector<float> RecoGrid_next((xbin+1)*DetectorReso[0],ybin*DetectorReso[1]+TPCVolume.GetDetectorOffset()[1],zbin*DetectorReso[2]);
                 ThreeVector<float> Dxyz_next = {(float) Dx->GetBinContent(xbin+2,ybin+1,zbin+1),(float) Dy->GetBinContent(xbin+2,ybin+1,zbin+1),(float) Dz->GetBinContent(xbin+2,ybin+1,zbin+1)};
                 ThreeVector<float> True_next = RecoGrid_next + Dxyz_next;
 
                 ThreeVector<float> Rn = True_next - True;
                 En[xbin+ybin*(TPCVolume.GetDetectorResolution()[0]-1)+zbin*(TPCVolume.GetDetectorResolution()[0]-1)*TPCVolume.GetDetectorResolution()[1]] = Ex / Delta_x * Rn;
 //                Position[xbin+ybin*TPCVolume.GetDetectorResolution()[0]+zbin*TPCVolume.GetDetectorResolution()[0]*TPCVolume.GetDetectorResolution()[1]] = True + 0.5 * Rn;
-//                if(true){std::cout<<"x: "<<xbin<<"; y: "<<ybin<<"; zbin: "<<zbin<<"; Ex: "<< (Ex/Delta_x*Rn)[0]<< "; Ey: "<< (Ex/Delta_x*Rn)[1]<<"; Ez: "<< (Ex/Delta_x*Rn)[2]<<std::endl;}
+
+//                std::cout<<"x: "<<xbin<<"; y: "<<ybin<<"; zbin: "<<zbin<<
+                std::cout<<" Px: "<< (True + (float)0.5 * Rn)[0]<< "; Py: "<< (True + (float)0.5 * Rn)[1]<<"; Pz: "<< (True + (float)0.5 * Rn)[2]<<
+                         "; Ex: "<< (Ex/Delta_x*Rn)[0]<< "; Ey: "<< (Ex/Delta_x*Rn)[1]<<"; Ez: "<< (Ex/Delta_x*Rn)[2]<<std::endl;
+                std::cout<<"-------------"<<std::endl;
+
 
             }
         }
@@ -410,6 +416,8 @@ std::vector<ThreeVector<float>> Eposition(TPCVolumeHandler& TPCVolume)
 //    std::vector<ThreeVector<float>> En(TPCVolume.GetDetectorResolution()[2]*TPCVolume.GetDetectorResolution()[1]*TPCVolume.GetDetectorResolution()[0]);
     std::vector<ThreeVector<float>> Position(Resolution[2]*Resolution[1]*(Resolution[0]-1));
 
+
+    // the position should be consistent to the one in the EInterpolateMap()
     for(unsigned zbin = 0; zbin < Resolution[2]; zbin++)
     {
         for(unsigned ybin = 0; ybin < Resolution[1]; ybin++)
@@ -418,11 +426,11 @@ std::vector<ThreeVector<float>> Eposition(TPCVolumeHandler& TPCVolume)
             // because we only consider the gap here
             for(unsigned xbin = 0; xbin < (Resolution[0]-1); xbin++)
             {//xbin =1, x=5 close to the anode; xbin = Nx, x=250 close to the cathode
-                ThreeVector<float> RecoGrid(xbin * DetectorReso[0],ybin*DetectorReso[1],zbin * DetectorReso[2]);
+                ThreeVector<float> RecoGrid(xbin * DetectorReso[0],ybin*DetectorReso[1]+TPCVolume.GetDetectorOffset()[1],zbin * DetectorReso[2]);
                 ThreeVector<float> Dxyz = {(float) Dx->GetBinContent(xbin+1,ybin+1,zbin+1),(float) Dy->GetBinContent(xbin+1,ybin+1,zbin+1),(float) Dz->GetBinContent(xbin+1,ybin+1,zbin+1)};
                 ThreeVector<float> True = RecoGrid + Dxyz;
 
-                ThreeVector<float> RecoGrid_next((xbin+1)*DetectorReso[0],ybin*DetectorReso[1],zbin*DetectorReso[2]);
+                ThreeVector<float> RecoGrid_next((xbin+1)*DetectorReso[0],ybin*DetectorReso[1]+TPCVolume.GetDetectorOffset()[1],zbin*DetectorReso[2]);
                 ThreeVector<float> Dxyz_next = {(float) Dx->GetBinContent(xbin+2,ybin+1,zbin+1),(float) Dy->GetBinContent(xbin+2,ybin+1,zbin+1),(float) Dz->GetBinContent(xbin+2,ybin+1,zbin+1)};
                 ThreeVector<float> True_next = RecoGrid_next + Dxyz_next;
 
@@ -448,24 +456,25 @@ void WriteEmapRoot(std::vector<ThreeVector<float>>& Efield, TPCVolumeHandler& TP
 
     // Initialize all TH3F
     std::vector<TH3F> Emap;
-    Emap.push_back(TH3F("Emap_X","E field map X",Resolution[0]-1,MinimumCoord[0],MaximumCoord[0],Resolution[1],MinimumCoord[1],MaximumCoord[1],Resolution[2],MinimumCoord[2],MaximumCoord[2]));
-    Emap.push_back(TH3F("Emap_Y","E field map Y",Resolution[0]-1,MinimumCoord[0],MaximumCoord[0],Resolution[1],MinimumCoord[1],MaximumCoord[1],Resolution[2],MinimumCoord[2],MaximumCoord[2]));
-    Emap.push_back(TH3F("Emap_Z","E field map Z",Resolution[0]-1,MinimumCoord[0],MaximumCoord[0],Resolution[1],MinimumCoord[1],MaximumCoord[1],Resolution[2],MinimumCoord[2],MaximumCoord[2]));
+    Emap.push_back(TH3F("Emap_X","E field map X",Resolution[0],MinimumCoord[0],MaximumCoord[0],Resolution[1],MinimumCoord[1],MaximumCoord[1],Resolution[2],MinimumCoord[2],MaximumCoord[2]));
+    Emap.push_back(TH3F("Emap_Y","E field map Y",Resolution[0],MinimumCoord[0],MaximumCoord[0],Resolution[1],MinimumCoord[1],MaximumCoord[1],Resolution[2],MinimumCoord[2],MaximumCoord[2]));
+    Emap.push_back(TH3F("Emap_Z","E field map Z",Resolution[0],MinimumCoord[0],MaximumCoord[0],Resolution[1],MinimumCoord[1],MaximumCoord[1],Resolution[2],MinimumCoord[2],MaximumCoord[2]));
 
 
     // Loop over the map through the order (z,y,x) just to be consistent, any order is acceptable
-    for(unsigned zbin = 0; zbin < Resolution[2]; zbin++)
+    // the loop should be exactly same as in EInterpolateMap()
+    for(unsigned xbin = 0; xbin < Resolution[0]; xbin++)
     {
         for(unsigned ybin = 0; ybin < Resolution[1]; ybin++)
         {
-            for(unsigned xbin = 0; xbin < Resolution[0]; xbin++)
+            for(unsigned zbin = 0; zbin < Resolution[2]; zbin++)
             {
 //                std::cout<<"x: "<<xbin<<"; y: "<<ybin<<"; zbin:"<<zbin<<"; EgridX: "<<Efield[xbin+ybin*Resolution[0]+zbin*Resolution[0]*Resolution[1]][0]<<"; EgridY: "<<Efield[xbin+ybin*Resolution[0]+zbin*Resolution[0]*Resolution[1]][1]<<"; EgridZ: "<<Efield[xbin+ybin*Resolution[0]+zbin*Resolution[0]*Resolution[1]][2]<<std::endl;
                 // Loop over all coordinates dx,dy,dz
                 for(unsigned coord = 0; coord < 3; coord++)
                 {
                     // Fill interpolated grid points into histograms. bin=0 is underflow, bin = nbin+1 is overflow
-                    Emap[coord].SetBinContent(xbin+1,ybin+1,zbin+1, Efield[xbin+ybin*Resolution[0]+zbin*Resolution[0]*Resolution[1]][coord]);
+                    Emap[coord].SetBinContent(xbin+1,ybin+1,zbin+1, Efield[zbin+ybin*Resolution[2]+xbin*Resolution[2]*Resolution[1]][coord]);
                 } // end coordinate loop
             } // end zbin loop
         } // end ybin loop

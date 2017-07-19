@@ -33,7 +33,8 @@ typedef CGAL::Delaunay_triangulation_3< InterpKernel, Tds > Delaunay;
 typedef Delaunay::Point Point;
 
 /////////////////E map session
-typedef CGAL::Triangulation_vertex_base_with_info_3<std::array<int, 3>, InterpKernel> xVb;
+//typedef CGAL::Triangulation_vertex_base_with_info_3<std::array<int, 3>, InterpKernel> xVb;
+typedef CGAL::Triangulation_vertex_base_with_info_3<int, InterpKernel> xVb;
 typedef CGAL::Triangulation_data_structure_3<xVb> xTds;
 typedef CGAL::Delaunay_triangulation_3< InterpKernel, xTds > xDelaunay;
 typedef xDelaunay::Point xPoint;
@@ -55,8 +56,8 @@ void InterpolateTrack(LaserTrack& ,const std::vector<LaserTrack>& , const Delaun
 /////////////////E map session
 xDelaunay Mesher(std::vector<ThreeVector<float>>& Position, TPCVolumeHandler& TPC);
 xPoint xVectorToPoint(ThreeVector<float>&);
-ThreeVector<float> EInterpolateCGAL(std::vector<ThreeVector<float>>& Position, const xDelaunay& Mesh, ThreeVector<float> Location, const TPCVolumeHandler& TPC);
-std::vector<ThreeVector<float>> EInterpolateMap(std::vector<ThreeVector<float>>& Position, const xDelaunay& Mesh, const TPCVolumeHandler& TPC);
+ThreeVector<float> EInterpolateCGAL(std::vector<ThreeVector<float>>& En, std::vector<ThreeVector<float>>& Position, const xDelaunay& Mesh, ThreeVector<float> Location, const TPCVolumeHandler& TPC);
+std::vector<ThreeVector<float>> EInterpolateMap(std::vector<ThreeVector<float>>& En, std::vector<ThreeVector<float>>& Position, const xDelaunay& Mesh, const TPCVolumeHandler& TPC);
 /////////////////E map session
 
 #endif

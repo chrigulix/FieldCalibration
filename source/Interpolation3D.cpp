@@ -138,34 +138,64 @@ Delaunay TrackMesher(const std::vector<LaserTrack>& LaserTrackSet)
     return DelaunayMesh;
 }
 
-/////////////////Emap
-////Attention! the typedef of EMAP Delaunay related template is with x
+///////////////////Emap
+//////Attention! the typedef of EMAP Delaunay related template is with x
+//xDelaunay Mesher(std::vector<ThreeVector<float>>& Position, TPCVolumeHandler& TPC)
+//{
+//    // Create a vector with a std::pair< Point, PointInfo (also a pair) > this is the input format for the Delaunay constructor
+//    std::vector< std::pair<Point,std::array<int, 3>> > Points;
+//
+//
+//    // Loop over grid in x,y,z
+//    for(int nz = 0; nz < TPC.GetDetectorResolution()[2]; nz++)
+//    {
+//        for(int ny = 0; ny < TPC.GetDetectorResolution()[1]; ny++)
+//        {
+//            for(int nx = 0; nx < (TPC.GetDetectorResolution()[0]-1); nx++) {
+//
+//                // Convert ThreeVector<float> of sample position to CGAL point
+//                xPoint SamplePoint = xPoint(Position[nx+ny*TPC.GetDetectorResolution()[0]+nz*TPC.GetDetectorResolution()[0]*TPC.GetDetectorResolution()[1]][0],
+//                                            Position[nx+ny*TPC.GetDetectorResolution()[0]+nz*TPC.GetDetectorResolution()[0]*TPC.GetDetectorResolution()[1]][1],
+//                                            Position[nx+ny*TPC.GetDetectorResolution()[0]+nz*TPC.GetDetectorResolution()[0]*TPC.GetDetectorResolution()[1]][2]);
+//
+//                // Prepare point info is nx,ny,nz corresponding to the reco grid bin which is a unique number
+//                std::array<int, 3> SamplePointIndex = {nx, ny, nz};
+//
+//                // Fill Delaunay input container with point and point info
+//                Points.push_back(std::make_pair(SamplePoint, SamplePointIndex));
+//            } // z
+//        } // y
+//    } // x
+//
+//    // Create Delaunay mesh (this takes quite some runtime!)
+//    xDelaunay DelaunayMesh(Points.begin(), Points.end());
+//
+//    // Return mesh
+//    return DelaunayMesh;
+//}
+///////////////////End of Emap Mesh
+
+///////////////Emap
+//Attention! the typedef of EMAP Delaunay related template is with x
 xDelaunay Mesher(std::vector<ThreeVector<float>>& Position, TPCVolumeHandler& TPC)
 {
     // Create a vector with a std::pair< Point, PointInfo (also a pair) > this is the input format for the Delaunay constructor
-    std::vector< std::pair<Point,std::array<int, 3>> > Points;
+    std::vector< std::pair<Point,int> > Points;
 
 
-    // Loop over grid in x,y,z
-    for(int nz = 0; nz < TPC.GetDetectorResolution()[2]; nz++)
+    // Loop over the size of grid
+    for(int n = 0; n < Position.size(); n++)
     {
-        for(int ny = 0; ny < TPC.GetDetectorResolution()[1]; ny++)
-        {
-            for(int nx = 0; nx < (TPC.GetDetectorResolution()[0]-1); nx++) {
+        // Convert ThreeVector<float> of sample position to CGAL point
+        xPoint SamplePoint = xPoint(Position[n][0], Position[n][1], Position[n][2]);
 
-                // Convert ThreeVector<float> of sample position to CGAL point
-                xPoint SamplePoint = xPoint(Position[nx+ny*TPC.GetDetectorResolution()[0]+nz*TPC.GetDetectorResolution()[0]*TPC.GetDetectorResolution()[1]][0],
-                                            Position[nx+ny*TPC.GetDetectorResolution()[0]+nz*TPC.GetDetectorResolution()[0]*TPC.GetDetectorResolution()[1]][1],
-                                            Position[nx+ny*TPC.GetDetectorResolution()[0]+nz*TPC.GetDetectorResolution()[0]*TPC.GetDetectorResolution()[1]][2]);
+        // Prepare point info is index of the mesh points
+        int SamplePointIndex = n;
 
-                // Prepare point info is nx,ny,nz corresponding to the reco grid bin which is a unique number
-                std::array<int, 3> SamplePointIndex = {nx, ny, nz};
+        // Fill Delaunay input container with point and point info
+        Points.push_back(std::make_pair(SamplePoint, SamplePointIndex));
 
-                // Fill Delaunay input container with point and point info
-                Points.push_back(std::make_pair(SamplePoint, SamplePointIndex));
-            } // z
-        } // y
-    } // x
+    }
 
     // Create Delaunay mesh (this takes quite some runtime!)
     xDelaunay DelaunayMesh(Points.begin(), Points.end());
@@ -280,14 +310,16 @@ ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet,
 ////Mesh refers to the result of Mesher()
 ////Location is the new grid point(true space coordinate)
 ////Attention! the typedef of EMAP Delaunay related template is with x
-ThreeVector<float> EInterpolateCGAL(std::vector<ThreeVector<float>>& Position, const xDelaunay& Mesh, ThreeVector<float> Location, const TPCVolumeHandler& TPC)
+ThreeVector<float> EInterpolateCGAL(std::vector<ThreeVector<float>>& En, std::vector<ThreeVector<float>>& Position, const xDelaunay& Mesh, ThreeVector<float> Location, const TPCVolumeHandler& TPC)
 {
     std::cout<<"---------------------------------------------------------------"<<std::endl;
     std::cout<<"Where the grid suppose to be......x: "<<Location[0]<<"; y: "<<Location[1]<<"; z: "<<Location[2]<<std::endl;
+
     ThreeVector<unsigned long> Reso = TPC.GetDetectorResolution();
 
     // Create a array which contains the info of all 4 vertices of a cell
-    std::array<std::array<int,3>,4> PointIndex;
+//    std::array<std::array<int,3>,4> PointIndex;
+    std::array<int, 4> Index;
 
     // Initialize a displacement vector with zero
     ThreeVector<float> InterpolatedEfield = {0.0,0.0,0.0};
@@ -296,17 +328,19 @@ ThreeVector<float> EInterpolateCGAL(std::vector<ThreeVector<float>>& Position, c
     std::vector<float> BaryCoord;
 
     // Find cell in the mesh where the point is located
-    xDelaunay::Cell_handle Cell =  Mesh.locate(xVectorToPoint(Location));
+//    xDelaunay::Cell_handle Cell =  Mesh.locate(xVectorToPoint(Location));
 
-//    Triangulation::Locate_type loc;
-//    int li, lj;
-//    xDelaunay::Cell_handle Cell =  Mesh.locate(xVectorToPoint(Location), loc, li, lj);
+    xDelaunay::Locate_type loc;
+    int li, lj;
+    xDelaunay::Cell_handle Cell =  Mesh.locate(xVectorToPoint(Location), loc, li, lj);
+    std::cout<<"loc: "<<loc<<"; li: "<<li<<"; lj: "<<lj<<std::endl;
 
     // Loop over all four vertex points of the cell of interest
-    for(unsigned vertex_no = 0; vertex_no < PointIndex.size(); vertex_no++)
+    for(unsigned vertex_no = 0; vertex_no < Index.size(); vertex_no++)
     {
         // Get vertex info of the cell (nx, ny, nz)
-        PointIndex[vertex_no] = Cell->vertex(vertex_no)->info();
+        // Get vertex info "n" (the index of the Position vector [Attention! It must be the exact same index as of the En vector!!!!])
+        Index[vertex_no] = Cell->vertex(vertex_no)->info();
 //        std::cout<<"vertex no: "<<vertex_no<<"; xbin: "<<Position[PointIndex[vertex_no][0]+PointIndex[vertex_no][1]*Reso[0]+PointIndex[vertex_no][2]*Reso[0]*Reso[1]][0]<<"; ybin: "<<Position[PointIndex[vertex_no][0]+PointIndex[vertex_no][1]*Reso[0]+PointIndex[vertex_no][2]*Reso[0]*Reso[1]][1]<<"; zbin: "<<Position[PointIndex[vertex_no][0]+PointIndex[vertex_no][1]*Reso[0]+PointIndex[vertex_no][2]*Reso[0]*Reso[1]][2]<<std::endl;
     }
 
@@ -315,37 +349,32 @@ ThreeVector<float> EInterpolateCGAL(std::vector<ThreeVector<float>>& Position, c
     Matrix3x3 TransMatrix = {{0,0,0},{0,0,0},{0,0,0}};
 
     // Loop over transverse matrix rows and columns
-    for(unsigned row = 0; row < 3; row++)
+    for(unsigned row = 0; row < 3; row++) //x,y,z
     {
-        for(unsigned column = 0; column < 3; column++)
+        for(unsigned column = 0; column < 3; column++)//1,2,3
         {
             // Fill transformation matrix elements
             // Valid for 3D barycentric coordinate system
             // When loop the E local position the order is z y x, be careful of the index of the vector
-            TransMatrix[row][column] = Position[PointIndex[column][0]+PointIndex[column][1]*Reso[0]+PointIndex[column][2]*Reso[0]*Reso[1]][row] - Position[PointIndex[3][0]+PointIndex[3][1]*Reso[0]+PointIndex[3][2]*Reso[0]*Reso[1]][row];
-//            std::cout<<"row: "<<row<<"; column: "<<column<<"; matrix: "<<TransMatrix[row][column]<<std::endl;
-//            std::cout<<"row: "<<row<<"; column: "<<column<<"; position: "<<Position[PointIndex[column][0]+PointIndex[column][1]*Reso[0]+PointIndex[column][2]*Reso[0]*Reso[1]][row]<<std::endl;
-//            std::cout<<"row: "<<row<<"; column: "<<column<<"; position4: "<<Position[PointIndex[3][0]+PointIndex[3][1]*Reso[0]+PointIndex[3][2]*Reso[0]*Reso[1]][row]<<std::endl;
-//////            std::cout<<"123"<<"; x: "<<PointIndex[column][0]<<"; y: "<<PointIndex[column][1]<<"; z: "<<PointIndex[column][2]<<std::endl;
-//            std::cout<<"444"<<"; x: "<<PointIndex[3][0]<<"; y: "<<PointIndex[3][1]<<"; z: "<<PointIndex[3][2]<<std::endl;
-//            std::cout<<"4index: "<<PointIndex[3][0]+PointIndex[3][1]*Reso[0]+PointIndex[3][2]*Reso[0]*Reso[1]<<std::endl;
-//            std::cout<<"p4: "<<"px: "<<Position[PointIndex[3][0]+PointIndex[3][1]*Reso[0]+PointIndex[3][2]*Reso[0]*Reso[1]][0]<<"; py: "<<Position[PointIndex[3][0]+PointIndex[3][1]*Reso[0]+PointIndex[3][2]*Reso[0]*Reso[1]][1]<<"; pz: "<<Position[PointIndex[3][0]+PointIndex[3][1]*Reso[0]+PointIndex[3][2]*Reso[0]*Reso[1]][2]<<std::endl;
-//            if((PointIndex[3][0]+PointIndex[3][1]*Reso[0]+PointIndex[3][2]*Reso[0]*Reso[1])==493){std::cout<<"-------p493: "<<"px: "<<Position[PointIndex[3][0]+PointIndex[3][1]*Reso[0]+PointIndex[3][2]*Reso[0]*Reso[1]][0]<<"; py: "<<Position[PointIndex[3][0]+PointIndex[3][1]*Reso[0]+PointIndex[3][2]*Reso[0]*Reso[1]][1]<<"; pz: "<<Position[PointIndex[3][0]+PointIndex[3][1]*Reso[0]+PointIndex[3][2]*Reso[0]*Reso[1]][2]<<std::endl;}
-//            std::cout<<"123index: "<<PointIndex[column][0]+PointIndex[column][1]*Reso[0]+PointIndex[column][2]*Reso[0]*Reso[1]<<std::endl;
-//            std::cout<<"p123: "<<"px: "<<Position[PointIndex[column][0]+PointIndex[column][1]*Reso[0]+PointIndex[column][2]*Reso[0]*Reso[1]][0]<<"; py: "<<Position[PointIndex[column][0]+PointIndex[column][1]*Reso[0]+PointIndex[column][2]*Reso[0]*Reso[1]][1]<<"; pz: "<<Position[PointIndex[column][0]+PointIndex[column][1]*Reso[0]+PointIndex[column][2]*Reso[0]*Reso[1]][2]<<std::endl;
+//            TransMatrix[row][column] = Position[PointIndex[column][0]+PointIndex[column][1]*Reso[0]+PointIndex[column][2]*Reso[0]*Reso[1]][row] - Position[PointIndex[3][0]+PointIndex[3][1]*Reso[0]+PointIndex[3][2]*Reso[0]*Reso[1]][row];
+            TransMatrix[row][column] = Position[Index[column]][row] - Position[Index[3]][row];
+
         }
     }
 
     // Reuse Location and store its position relative to the last vertex of the cell it is contained in
     // r - r4 in threevector
-    Location -= Position[PointIndex[3][0]+PointIndex[3][1]*Reso[0]+PointIndex[3][2]*Reso[0]*Reso[1]];
+//    Location -= Position[PointIndex[3][0]+PointIndex[3][1]*Reso[0]+PointIndex[3][2]*Reso[0]*Reso[1]];
+//    Location -= Position[Index[3]];
+    ThreeVector<float> RR4 = Location - Position[Index[3]];
 
     // If the transformation matrix can be successfully inverted
     // when calling invert, the matrix is already succuessfully inverted
     if(TransMatrix.Invert())
     {
         // Use inverted matrix to fill the first three coordinates
-        ThreeVector<float> BC = TransMatrix * Location;
+//        ThreeVector<float> BC = TransMatrix * Location;
+        ThreeVector<float> BC = TransMatrix * RR4;
         BaryCoord = BC.GetStdVector();
 
         // The sum of all barycentric coordinates has to be 1 by definition, use this to calculate the 4th coordinate
@@ -365,15 +394,16 @@ ThreeVector<float> EInterpolateCGAL(std::vector<ThreeVector<float>>& Position, c
     {
         // Set E field to zero and end function immediately!
         std::cout<<"There is negative barycentric coordinate at this E grid point! "<<std::endl;
-//        std::cout<<"loc: "<<loc<<"; li: "<<li<<"; lj: "<<lj<<std::endl;
-        for(unsigned vertex_no = 0; vertex_no < PointIndex.size(); vertex_no++)
-        {
-            PointIndex[vertex_no] = Cell->vertex(vertex_no)->info();
-            std::cout<<"vertex no: "<<vertex_no
-                     <<"; xbin: "<<Position[PointIndex[vertex_no][0]+PointIndex[vertex_no][1]*Reso[0]+PointIndex[vertex_no][2]*Reso[0]*Reso[1]][0]
-                     <<"; ybin: "<<Position[PointIndex[vertex_no][0]+PointIndex[vertex_no][1]*Reso[0]+PointIndex[vertex_no][2]*Reso[0]*Reso[1]][1]
-                     <<"; zbin: "<<Position[PointIndex[vertex_no][0]+PointIndex[vertex_no][1]*Reso[0]+PointIndex[vertex_no][2]*Reso[0]*Reso[1]][2]<<std::endl;
-        }
+//        for(unsigned vertex_no = 0; vertex_no < Index.size(); vertex_no++)
+//        {
+//            Index[vertex_no] = Cell->vertex(vertex_no)->info();
+////            std::cout<<"vertex no: "<<vertex_no
+////                     <<"; xbin: "<<Position[PointIndex[vertex_no][0]+PointIndex[vertex_no][1]*Reso[0]+PointIndex[vertex_no][2]*Reso[0]*Reso[1]][0]
+////                     <<"; ybin: "<<Position[PointIndex[vertex_no][0]+PointIndex[vertex_no][1]*Reso[0]+PointIndex[vertex_no][2]*Reso[0]*Reso[1]][1]
+////                     <<"; zbin: "<<Position[PointIndex[vertex_no][0]+PointIndex[vertex_no][1]*Reso[0]+PointIndex[vertex_no][2]*Reso[0]*Reso[1]][2]<<std::endl;
+//            std::cout<<"vertex no: "<<vertex_no
+//                     <<"; xbin: "<<Position[Index[vertex_no]][0] <<"; ybin: "<<Position[Index[vertex_no]][1] <<"; zbin: "<<Position[Index[vertex_no]][2]<<std::endl;
+//        }
         InterpolatedEfield = {273.0,0.0,0.0};
         return InterpolatedEfield;
     }
@@ -384,10 +414,14 @@ ThreeVector<float> EInterpolateCGAL(std::vector<ThreeVector<float>>& Position, c
         // Use the barycentric coordinates as a weight for the correction stored at this vertex in order to get the interpolated displacement
         // Adding up the barycoord components as a whole vector of (x1,y1 ,z1) instead of x1,x2,x3....
         // BaryCoord[vertex_no] is a number
-        InterpolatedEfield += Position[PointIndex[vertex_no][0]+PointIndex[vertex_no][1]*Reso[0]+PointIndex[vertex_no][2]*Reso[0]*Reso[1]] * BaryCoord[vertex_no];
+        InterpolatedEfield += En[Index[vertex_no]] * BaryCoord[vertex_no];
+//        InterpolatedEfield += Position[PointIndex[vertex_no][0]+PointIndex[vertex_no][1]*Reso[0]+PointIndex[vertex_no][2]*Reso[0]*Reso[1]] * BaryCoord[vertex_no];
     }
 
-//    std::cout<<"After shift......x: "<<Location[0]<<"; y: "<<Location[1]<<"; z: "<<Location[2]<<"; Ex: "<<InterpolatedEfield[0]<<"; Ey: "<<InterpolatedEfield[1]<<"; Ez: "<<InterpolatedEfield[2]<<std::endl;
+    if(Location[1]<0){
+        std::cout<<"Ex: "<<InterpolatedEfield[0]<<"; Ey: "<<InterpolatedEfield[1]<<"; Ez: "<<InterpolatedEfield[2]<<std::endl;
+    }
+
     // Return interpolated E field
     return InterpolatedEfield;
 }
@@ -405,7 +439,7 @@ std::vector<ThreeVector<float>> InterpolateMap(const std::vector<LaserTrack>& La
     // Loop over all xbins of the TPC
     for(unsigned xbin = 0; xbin < TPC.GetDetectorResolution()[0]; xbin++) 
     {
-        std::cout << "Processing plane " << xbin << " of " << TPC.GetDetectorResolution()[0] - 1 << std::endl;
+        std::cout << "Processing plane " << xbin << " of " << TPC.GetDetectorResolution()[0]  << std::endl;
         // Calculate Grid point x-coordinate
         Location[0] = TPC.GetDetectorOffset()[0] + TPC.GetDetectorSize()[0]/static_cast<float>(TPC.GetDetectorResolution()[0]) * xbin;
     
@@ -433,7 +467,7 @@ std::vector<ThreeVector<float>> InterpolateMap(const std::vector<LaserTrack>& La
 ///////////E field Interpolation Map
 //// This part can be reduced with template maybe..
 //// This function interpolates regularly spaced grid points of the TPC and stores them in a std::vector (can later be used in the WriteRootFile function)
-std::vector<ThreeVector<float>> EInterpolateMap(std::vector<ThreeVector<float>>& Position, const xDelaunay& Mesh, const TPCVolumeHandler& TPC)
+std::vector<ThreeVector<float>> EInterpolateMap(std::vector<ThreeVector<float>>& En, std::vector<ThreeVector<float>>& Position, const xDelaunay& Mesh, const TPCVolumeHandler& TPC)
 {
     // Initialize output data structure
     std::vector<ThreeVector<float>> EMap;
@@ -441,10 +475,16 @@ std::vector<ThreeVector<float>> EInterpolateMap(std::vector<ThreeVector<float>>&
     // Initialize temporary location vector
     ThreeVector<float> Location;
 
+    //If feed in the mesh points
+//    for(int n = 0; n < Position.size(); n++){
+//        Location = Position[n];
+//        EMap.push_back(EInterpolateCGAL(Position,Mesh,Location,TPC));
+//    }
+
     // Loop over all xbins of the TPC
     for(unsigned xbin = 0; xbin < TPC.GetDetectorResolution()[0]; xbin++)
     {
-        std::cout << "Processing plane " << xbin << " of " << TPC.GetDetectorResolution()[0] - 1 << std::endl;
+        std::cout << "Processing plane " << xbin << " of " << TPC.GetDetectorResolution()[0]  << std::endl;
         // Calculate Grid point x-coordinate
         Location[0] = TPC.GetDetectorOffset()[0] + TPC.GetDetectorSize()[0]/static_cast<float>(TPC.GetDetectorResolution()[0]) * xbin;
 
@@ -462,10 +502,10 @@ std::vector<ThreeVector<float>> EInterpolateMap(std::vector<ThreeVector<float>>&
 
 //                std::cout<<"Location::::"<<"x: "<<Location[0]<<"; y: "<<Location[1]<<"; y: "<<Location[2]<<std::endl;
                 // Fill displacement map
-                EMap.push_back(EInterpolateCGAL(Position,Mesh,Location,TPC));
+                EMap.push_back(EInterpolateCGAL(En, Position,Mesh,Location,TPC));
             } // end zbin loop
         } // end ybin loop
-    } // end ybin loop
+    } // end xbin loop
 
     return EMap;
 }
