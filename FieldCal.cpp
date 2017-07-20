@@ -87,7 +87,7 @@ int main(int argc, char** argv)
     // Calculate track displacement
     std::cout << "Find track displacements... " << std::endl;
     // Choose displacement algorithm (available so far: TrackDerivative, ClosestPoint, or LinearStretch)
-    LaserTrackSet.CalcDisplacement(LaserTrack::LinearStretch);
+    LaserTrackSet.CalcDisplacement(LaserTrack::ClosestPoint);
     
     // Add displacement to reconstructed track to change to detector coordinates (only for map generation)
     LaserTrackSet.AddCorrectionToReco();
