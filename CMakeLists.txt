@@ -106,6 +106,7 @@ target_link_libraries(FieldCal ${ROOT_LIBRARIES} ${CGAL_LIBRARIES} ${CMAKE_THREA
 
 # Testing stuff
 if(TESTING)
+  message(STATUS "Testing enabled.")
   find_package(GTest REQUIRED)
   if( GTEST_FOUND )
     enable_testing()
