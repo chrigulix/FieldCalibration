@@ -78,7 +78,7 @@ public:
   void AppendSample(float SamplePos_x, float SamplePos_y, float SamplePos_z, float SampleCorr_x, float SampleCorr_y, float SampleCorr_z);
   void AppendSample(float,float,float);
 
-    std::vector<ThreeVector<float>> GetTrack();
+    std::vector<ThreeVector<float>> GetReco();
   
   static void DistortTracks(std::vector<LaserTrack>&, const std::string&, const TPCVolumeHandler&);
 };

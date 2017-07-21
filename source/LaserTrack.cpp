@@ -441,7 +441,7 @@ void LaserTrack::DistortTracks(std::vector<LaserTrack>& LaserTracks, const std::
   gDirectory->GetList()->Delete();
 }
 
-std::vector<ThreeVector<float>> LaserTrack::GetTrack() {
+std::vector<ThreeVector<float>> LaserTrack::GetReco() {
     return LaserReco;
 }
 
