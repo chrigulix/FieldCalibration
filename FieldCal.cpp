@@ -18,6 +18,7 @@
 // C headers
 #include <pthread.h>
 #include <unistd.h>
+#include <getopt.h>
 
 // ROOT headers
 #include "TROOT.h"
@@ -53,7 +54,7 @@
 #include "include/Utilities.hpp"
 
 // Initialize functions defined below
-Laser ReadRecoTracks(int argc, char** argv);
+Laser ReadRecoTracks(std::vector<std::string>);
 void WriteRootFile(std::vector<ThreeVector<float>>&, TPCVolumeHandler&, std::string="RecoDispl.root");
 void WriteTextFile(std::vector<ThreeVector<float>>&);
 void LaserInterpThread(Laser&, const Laser&, const Delaunay&);
@@ -66,11 +67,38 @@ int main(int argc, char** argv)
     time_t timer;
     std::time(&timer);
 
+    // specify the amount of downsampling
+    unsigned int n_split = 1;
+
     // If there are to few input arguments abord
     if(argc < 2)
     {
-        std::cerr << "ERROR: Too few arguments, use ./LaserCal <input file names>" << std::endl;
+        std::cerr << "ERROR: Too few arguments, use ./LaserCal <options> <input file names>" << std::endl;
+        std::cerr << "options:  -d INTEGER  : Number of downsampling of the input dataset, default 1." << std::endl;
         return -1;
+    }
+    // Lets handle all options
+    int c;
+    while((c = getopt(argc, argv, ":d:")) != -1){
+        switch(c){
+            case 'd':
+                n_split = atoi(optarg);
+                break;
+            // put in your case here. also add it to the while loop as an option or as required argument
+        }
+    }
+
+    // Now handle input files
+    std::vector<std::string> InputFiles;
+    unsigned int n_files = 0;
+    for (int i = optind; i < argc; i++) {
+        std::string filename (argv[i]);
+        // check if file exists
+        std::ifstream f(filename.c_str());
+        if (!f.good()) {
+            throw std::runtime_error(std::string("file does not exist: ") + filename);
+        }
+        InputFiles.push_back(filename);
     }
 
     // Coose detector dimensions, coordinate system offset and resolutions
@@ -78,8 +106,6 @@ int main(int argc, char** argv)
     ThreeVector<float> DetectorOffset = {0.0,-DetectorSize[1]/static_cast<float>(2.0),0.0};
     ThreeVector<unsigned long> DetectorResolution = {26,26,101};
 
-    // specify the amount of downsampling
-    unsigned int n_split = 2;
 
     std::vector<std::vector<ThreeVector<float>>> DisplMapsHolder;
     DisplMapsHolder.resize(n_split);
@@ -93,7 +119,7 @@ int main(int argc, char** argv)
 
     // Read data and store it to a Laser object
     std::cout << "Reading data..." << std::endl;
-    Laser FullTracks = ReadRecoTracks(argc,argv);
+    Laser FullTracks = ReadRecoTracks(InputFiles);
 
     // Here we split the laser set in multiple laser sets...
     std::vector<Laser> LaserSets = SplitTrackSet(FullTracks, n_split);
@@ -137,7 +163,7 @@ int main(int argc, char** argv)
 } // end main
 
 
-Laser ReadRecoTracks(int argc, char** argv)
+Laser ReadRecoTracks(std::vector<std::string> InputFiles)
 {
     // Create Laser (collection of laser tracks) this will be the returned object
     Laser TrackSelection;
@@ -159,11 +185,11 @@ Laser ReadRecoTracks(int argc, char** argv)
     TChain* RecoTrackTree = new TChain("tracks");
     
     // Loop through all input files and add them to the TChain
-    for(int arg = 1; arg < argc; arg++)
+    for(auto const& InFile : InputFiles)
     {
         // Open input file and add to TChains
-        LaserInfoTree->Add(argv[arg]);
-        RecoTrackTree->Add(argv[arg]);
+        LaserInfoTree->Add(InFile.c_str());
+        RecoTrackTree->Add(InFile.c_str());
     }
     
     // Assigne branch addresses
