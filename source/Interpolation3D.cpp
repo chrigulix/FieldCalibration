@@ -193,19 +193,17 @@ ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet,
     // Initialize a displacement vector with zero
     ThreeVector<float> InterpolatedDispl = {0.0,0.0,0.0};
     
-    // Initialize Barycentry coordinate system (it will have 4 dimensions)
+    // Initialize Barycentric coordinate system (it will have 4 dimensions)
     std::vector<float> BaryCoord;
     
     // Find cell in the mesh where the point is located
     Delaunay::Cell_handle Cell =  Mesh.locate(VectorToPoint(Location));
 
-    std::cout<<"....................................."<<std::endl;
     // Loop over all four vertex points of the cell of interest
     for(unsigned vertex_no = 0; vertex_no < PointIndex.size(); vertex_no++)
     {
         // Get vertex info of the cell (track number, sample number)
         PointIndex[vertex_no] = Cell->vertex(vertex_no)->info();
-        std::cout<<"vertex no: "<<vertex_no<<"; track: "<<PointIndex[vertex_no].first<<"; sample: "<<PointIndex[vertex_no].second<<std::endl;
     }
     
     // Initialize matrix for Location transformation into barycentric coordinate system
@@ -269,8 +267,6 @@ ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet,
 ////Location is the new grid point(true space coordinate)
 ThreeVector<float> EInterpolateCGAL(std::vector<ThreeVector<float>>& En, std::vector<ThreeVector<float>>& Position, const xDelaunay& Mesh, ThreeVector<float> Location, const TPCVolumeHandler& TPC)
 {
-    std::cout<<"---------------------------------------------------------------"<<std::endl;
-    std::cout<<"Where the grid suppose to be......x: "<<Location[0]<<"; y: "<<Location[1]<<"; z: "<<Location[2]<<std::endl;
 
     ThreeVector<unsigned long> Reso = TPC.GetDetectorResolution();
 
@@ -408,7 +404,7 @@ std::vector<ThreeVector<float>> EInterpolateMap(std::vector<ThreeVector<float>>&
     // Loop over all xbins of the TPC
     for(unsigned xbin = 0; xbin < TPC.GetDetectorResolution()[0]; xbin++)
     {
-        std::cout << "Processing plane " << xbin << " of " << TPC.GetDetectorResolution()[0]  << " for Emap. " std::endl;
+        std::cout << "Processing plane " << xbin << " of " << TPC.GetDetectorResolution()[0]  << " for Emap. "<< std::endl;
 
         // Calculate Grid point x-coordinate
         Location[0] = TPC.GetDetectorOffset()[0] + TPC.GetDetectorSize()[0]/static_cast<float>(TPC.GetDetectorResolution()[0]) * xbin;
