@@ -10,3 +10,5 @@
 #include "Laser.hpp"
 
 std::vector<Laser> ReachedExitPoint(const Laser&, float);
+
+std::vector<Laser> SplitTrackSet(const Laser&, unsigned int);
