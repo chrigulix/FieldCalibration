@@ -6,7 +6,7 @@ include_directories(${GTEST_INCLUDE_DIRS} ${ROOT_INCLUDE_DIR} ${CMAKE_SOURCE_DIR
 
 # Add any further test files here
 set(TEST_FILES
-        test_splitter.cpp
+        test_utilities.cpp
         )
 
 add_executable(RunTests ${TEST_FILES})
