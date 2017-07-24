@@ -50,10 +50,11 @@
 #include "include/Interpolation3D.hpp"
 #include "include/Matrix3x3.hpp"
 #include "include/Laser.hpp"
+#include "include/Utilities.hpp"
 
 // Initialize functions defined below
 Laser ReadRecoTracks(int argc, char** argv);
-void WriteRootFile(std::vector<ThreeVector<float>>&, TPCVolumeHandler&);
+void WriteRootFile(std::vector<ThreeVector<float>>&, TPCVolumeHandler&, std::string="RecoDispl.root");
 void WriteTextFile(std::vector<ThreeVector<float>>&);
 void LaserInterpThread(Laser&, const Laser&, const Delaunay&);
 std::vector<Laser> ReachedExitPoint(const Laser&, float);
@@ -76,34 +77,62 @@ int main(int argc, char** argv)
     ThreeVector<float> DetectorSize = {256.04,232.5,1036.8};
     ThreeVector<float> DetectorOffset = {0.0,-DetectorSize[1]/static_cast<float>(2.0),0.0};
     ThreeVector<unsigned long> DetectorResolution = {26,26,101};
-    
+
+    // specify the amount of downsampling
+    unsigned int n_split = 2;
+
+    std::vector<std::vector<ThreeVector<float>>> DisplMapsHolder;
+    DisplMapsHolder.resize(n_split);
+
+    std::stringstream ss;
+    ss << "RecoDispl-" << n_split << ".root";
+    std::string OutFilename = ss.str();
+
     // Create the detector volume
     TPCVolumeHandler Detector(DetectorSize, DetectorOffset, DetectorResolution);
-    
+
     // Read data and store it to a Laser object
     std::cout << "Reading data..." << std::endl;
-    Laser LaserTrackSet = ReadRecoTracks(argc,argv);
-    
-    // Calculate track displacement
-    std::cout << "Find track displacements... " << std::endl;
-    // Choose displacement algorithm (available so far: TrackDerivative, ClosestPoint, or LinearStretch)
-    LaserTrackSet.CalcDisplacement(LaserTrack::ClosestPoint);
-    
-    // Add displacement to reconstructed track to change to detector coordinates (only for map generation)
-    LaserTrackSet.AddCorrectionToReco();
-    
-    // Create delaunay mesh
-    std::cout << "Generate mesh..." << std::endl;
-    Delaunay Mesh = TrackMesher(LaserTrackSet.GetTrackSet());
-    
-    // Interpolate Displacement Map (regularly spaced grid)
-    std::cout << "Start interpolation..." << std::endl;
-    std::vector<ThreeVector<float>> DisplacementMap = InterpolateMap(LaserTrackSet.GetTrackSet(),Mesh,Detector);
-    
+    Laser FullTracks = ReadRecoTracks(argc,argv);
+
+    // Here we split the laser set in multiple laser sets...
+    std::vector<Laser> LaserSets = SplitTrackSet(FullTracks, n_split);
+
+    // Now we loop over each individual set and compute the displacement vectors.
+    // TODO: This could be parallelized
+    for (unsigned int set = 0; set < n_split; set++) {
+        std::cout << "Processing subset " << set << " ... " << std::endl;
+
+        // Calculate track displacement
+        std::cout << "Find track displacements... " << std::endl;
+        // Choose displacement algorithm (available so far: TrackDerivative, ClosestPoint, or LinearStretch)
+        LaserSets[set].CalcDisplacement(LaserTrack::ClosestPoint);
+
+        // Add displacement to reconstructed track to change to detector coordinates (only for map generation)
+        LaserSets[set].AddCorrectionToReco();
+
+        // Create delaunay mesh
+        std::cout << "Generate mesh..." << std::endl;
+        Delaunay Mesh = TrackMesher(LaserSets[set].GetTrackSet());
+
+        // Interpolate Displacement Map (regularly spaced grid)
+        std::cout << "Start interpolation..." << std::endl;
+        DisplMapsHolder[set] = InterpolateMap(LaserSets[set].GetTrackSet(), Mesh, Detector);
+    }
+
+    // Now we go on to create an unified displacement map
+    std::vector<ThreeVector<float>> DisplacementMap(DisplMapsHolder.front().size(), ThreeVector<float>(0.,0.,0.));
+
+    for (auto const& SubMap: DisplMapsHolder){
+        for (unsigned int idx=0; idx < DisplacementMap.size(); idx++){
+            DisplacementMap[idx] = DisplacementMap[idx] + SubMap[idx] / static_cast<float>(n_split);
+        }
+    }
+
     // Fill displacement map into TH3 histograms and write them to file
     std::cout << "Write to File ..." << std::endl;
-    WriteRootFile(DisplacementMap,Detector);
-    
+    WriteRootFile(DisplacementMap,Detector,OutFilename);
+
     std::cout << "End of program after "<< std::difftime(std::time(NULL),timer) << " s" << std::endl;
 } // end main
 
@@ -192,7 +221,7 @@ Laser ReadRecoTracks(int argc, char** argv)
 } // end ReadRecoTracks
 
 
-void WriteRootFile(std::vector<ThreeVector<float>>& InterpolationData, TPCVolumeHandler& TPCVolume)
+void WriteRootFile(std::vector<ThreeVector<float>>& InterpolationData, TPCVolumeHandler& TPCVolume, std::string OutputFilename)
 { 
     // Store TPC properties which are important for the TH3 generation
     ThreeVector<unsigned long> Resolution = TPCVolume.GetDetectorResolution();
@@ -226,7 +255,7 @@ void WriteRootFile(std::vector<ThreeVector<float>>& InterpolationData, TPCVolume
     } // end zbin loop
     
     // Open and recreate output file
-    TFile OutputFile("RecoDispl.root", "recreate");
+    TFile OutputFile(OutputFilename.c_str(), "recreate");
     
     // Loop over space coordinates
     for(unsigned coord = 0; coord < RecoDisplacement.size(); coord++)
