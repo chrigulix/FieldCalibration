@@ -150,6 +150,8 @@ Point VectorToPoint(ThreeVector<float>& InputVector)
 // This function Interpolates the displacement of Location within the Mesh
 ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet, const Delaunay& Mesh, ThreeVector<float> Location)
 {
+    float float_max = std::numeric_limits<float>::max();
+
     // Create a array which contains the info of all 4 vertices of a cell
     std::array<std::pair<unsigned long, unsigned long>,4> PointIndex;
 
@@ -198,7 +200,7 @@ ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet,
     else // if the matrix can't be inverted
     {
         // Set displacement zero and end function immediately!
-        InterpolatedDispl = {0.0,0.0,0.0};
+        InterpolatedDispl = {float_max,float_max,float_max};
         return InterpolatedDispl;
     }
     
@@ -207,7 +209,7 @@ ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet,
     if(BaryCoord[0] <= 0.0 || BaryCoord[1] <= 0.0 || BaryCoord[2] <= 0.0 || BaryCoord[3] <= 0.0)
     {
         // Set displacement zero and end function immediately!
-        InterpolatedDispl = {0.0,0.0,0.0};
+        InterpolatedDispl = {float_max,float_max,float_max};
         return InterpolatedDispl;
     }
     
