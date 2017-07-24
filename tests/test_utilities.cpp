@@ -175,7 +175,7 @@ TEST(TestDownsampler, TwoTracks) {
     for (int i=1; i < 11; i++){
         const float pt = i;
         RecobLaserTrack1.push_back(TVector3(pt,pt,pt));
-        RecobLaserTrack1.push_back(TVector3(-pt,-pt,-pt));
+        RecobLaserTrack2.push_back(TVector3(-pt,-pt,-pt));
     }
 
     // Make a laser track out of entry, exit and track points. Then add it to the Laser collection
