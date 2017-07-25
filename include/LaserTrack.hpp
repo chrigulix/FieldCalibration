@@ -48,6 +48,7 @@ public:
   
   // Constructor with reco data input with entry point, exit point, and reco track 
   LaserTrack(const TVector3& InEntryPoint, const TVector3& InExitPoint, const std::vector<TVector3>& RecoTrack);
+    LaserTrack(const ThreeVector<float>& InEntryPoint, const ThreeVector<float>& InExitPoint, const std::vector<ThreeVector<float>>& RecoTrack);
   LaserTrack(std::array<float,2>&, ThreeVector<float>&, const TPCVolumeHandler&);
   LaserTrack(const unsigned int,std::array<float,2>&, ThreeVector<float>&, const TPCVolumeHandler&);
 
@@ -79,6 +80,8 @@ public:
   void AppendSample(ThreeVector<float>&);
   void AppendSample(float SamplePos_x, float SamplePos_y, float SamplePos_z, float SampleCorr_x, float SampleCorr_y, float SampleCorr_z);
   void AppendSample(float,float,float);
+
+    std::vector<ThreeVector<float>> GetReco();
   
   static void DistortTracks(std::vector<LaserTrack>&, const std::string&, const TPCVolumeHandler&);
 };

@@ -18,6 +18,7 @@
 // C headers
 #include <pthread.h>
 #include <unistd.h>
+#include <getopt.h>
 
 // ROOT headers
 #include "TROOT.h"
@@ -50,11 +51,13 @@
 #include "include/Interpolation3D.hpp"
 #include "include/Matrix3x3.hpp"
 #include "include/Laser.hpp"
+#include "include/Utilities.hpp"
 
 // Initialize functions defined below
+
 //bool Twolasersys(int argc, char** argv);
-Laser ReadRecoTracks(int argc, char** argv);
-void WriteRootFile(std::vector<ThreeVector<float>>& , TPCVolumeHandler&);
+Laser ReadRecoTracks(std::vector<std::string>);
+void WriteRootFile(std::vector<ThreeVector<float>>&, TPCVolumeHandler&, std::string);
 void WriteTextFile(std::vector<ThreeVector<float>>&);
 void LaserInterpThread(Laser&, const Laser&, const Delaunay&);
 std::vector<Laser> ReachedExitPoint(const Laser&, float);
@@ -74,10 +77,38 @@ int main(int argc, char** argv) {
     time_t timer;
     std::time(&timer);
 
+    // specify the amount of downsampling
+    unsigned int n_split = 1;
+
     // If there are to few input arguments abord
-    if (argc < 2) {
-        std::cerr << "ERROR: Too few arguments, use ./LaserCal <input file names>" << std::endl;
+    if(argc < 2)
+    {
+        std::cerr << "ERROR: Too few arguments, use ./LaserCal <options> <input file names>" << std::endl;
+        std::cerr << "options:  -d INTEGER  : Number of downsampling of the input dataset, default 1." << std::endl;
         return -1;
+    }
+    // Lets handle all options
+    int c;
+    while((c = getopt(argc, argv, ":d:")) != -1){
+        switch(c){
+            case 'd':
+                n_split = atoi(optarg);
+                break;
+            // put in your case here. also add it to the while loop as an option or as required argument
+        }
+    }
+
+    // Now handle input files
+    std::vector<std::string> InputFiles;
+    unsigned int n_files = 0;
+    for (int i = optind; i < argc; i++) {
+        std::string filename (argv[i]);
+        // check if file exists
+        std::ifstream f(filename.c_str());
+        if (!f.good()) {
+            throw std::runtime_error(std::string("file does not exist: ") + filename);
+        }
+        InputFiles.push_back(filename);
     }
 
     // Choose detector dimensions, coordinate system offset and resolutions
@@ -87,48 +118,70 @@ int main(int argc, char** argv) {
     // Create the detector volume
     TPCVolumeHandler Detector(DetectorSize, DetectorOffset, DetectorResolution);
 
+  
     if(DoCorr){
+        std::vector<std::vector<ThreeVector<float>>> DisplMapsHolder;
+        DisplMapsHolder.resize(n_split);
+
+        std::stringstream ss_outfile;
+        ss_outfile << "RecoDispl-" << n_split << ".root";
 
         // Read data and store it to a Laser object
         std::cout << "Reading data..." << std::endl;
-        Laser LaserTrackSet = ReadRecoTracks(argc, argv);
+        Laser FullTracks = ReadRecoTracks(InputFiles);
+      
+        // Here we split the laser set in multiple laser sets...
+        std::vector<Laser> LaserSets = SplitTrackSet(FullTracks, n_split);
+      
+        // Now we loop over each individual set and compute the displacement vectors.
+        // TODO: This could be parallelized
+        for (unsigned int set = 0; set < n_split; set++) {
+            std::cout << "Processing subset " << set << " ... " << std::endl;
 
-        // Calculate track displacement
-        std::cout << "Find track displacements... " << std::endl;
+            // Calculate track displacement
+            std::cout << "Find track displacements... " << std::endl;
+          
+            if (CorrMapFlag) {
+                ss_outfile << "RecoCorrection-" << n_split << ".root";
+                // Choose displacement algorithm (available so far: TrackDerivative, ClosestPoint, or LinearStretch)
+                // Suggestion: stay with ClosestPoint Algorithm
+                LaserSets[set].CalcDisplacement(LaserTrack::ClosestPointCorr);
 
-        if (CorrMapFlag) {
-            // Choose displacement algorithm (available so far: TrackDerivative, ClosestPoint, or LinearStretch)
-            // Suggestion: stay with ClosestPoint Algorithm
-            LaserTrackSet.CalcDisplacement(LaserTrack::ClosestPointCorr);
+                // Now the laser data are based on the reconstructed coordinate. For CORRECTION MAP, they are good enough.
+                // No need to prepare to set true coordinate
+            }
+            // Caculating now the displacement map of distortion based on the true coordinates
+            // Remember to turn the "CorrMapFlag" off
+            if (!CorrMapFlag) {
+                ss_outfile << "TrueDistortion-" << n_split << ".root";
+                // Choose displacement algorithm (available so far: TrackDerivative, ClosestPoint, or LinearStretch)
+                // Suggestion: stay with ClosestPoint Algorithm
+                LaserSets[set].CalcDisplacement(LaserTrack::ClosestPointDist);
 
-            // Now the laser data are based on the reconstructed coordinate. For CORRECTION MAP, they are good enough.
-            // No need to prepare to set true coordinate
+                // Now the laser tracks are based on the reconstructed coordinate. If require DISTORTION MAP as output, set the base on the true coordinate
+                // Add displacement to reconstructed track to change to detector coordinates (only for map generation)
+                LaserSets[set].AddCorrectionToReco();
+            }
+
+            // Create delaunay mesh
+            std::cout << "Generate mesh..." << std::endl;
+            Delaunay Mesh = TrackMesher(LaserSets[set].GetTrackSet());
+
+            // Interpolate Displacement Map (regularly spaced grid)
+            std::cout << "Start interpolation..." << std::endl;
+            DisplMapsHolder[set] = InterpolateMap(LaserSets[set].GetTrackSet(), Mesh, Detector);
         }
+        // Now we go on to create an unified displacement map
+        std::vector<ThreeVector<float>> DisplacementMap(DisplMapsHolder.front().size(), ThreeVector<float>(0.,0.,0.));
 
-        // Caculating now the displacement map of distortion based on the true coordinates
-        // Remember to turn the "CorrMapFlag" off
-        if (!CorrMapFlag) {
-            // Choose displacement algorithm (available so far: TrackDerivative, ClosestPoint, or LinearStretch)
-            // Suggestion: stay with ClosestPoint Algorithm
-            LaserTrackSet.CalcDisplacement(LaserTrack::ClosestPointDist);
-
-            // Now the laser tracks are based on the reconstructed coordinate. If require DISTORTION MAP as output, set the base on the true coordinate
-            // Add displacement to reconstructed track to change to detector coordinates (only for map generation)
-            LaserTrackSet.AddCorrectionToReco();
+        for (auto const& SubMap: DisplMapsHolder){
+            for (unsigned int idx=0; idx < DisplacementMap.size(); idx++){
+                DisplacementMap[idx] = DisplacementMap[idx] + SubMap[idx] / static_cast<float>(n_split);
+            }
         }
-
-
-        // Create delaunay mesh
-        std::cout << "Generate mesh..." << std::endl;
-        Delaunay Mesh = TrackMesher(LaserTrackSet.GetTrackSet());
-
-        // Interpolate Displacement Map (regularly spaced grid)
-        std::cout << "Start interpolation..." << std::endl;
-        std::vector<ThreeVector<float>> DisplacementMap = InterpolateMap(LaserTrackSet.GetTrackSet(), Mesh, Detector);
-
         // Fill displacement map into TH3 histograms and write them to file
         std::cout << "Write to File ..." << std::endl;
-        WriteRootFile(DisplacementMap, Detector);
+        WriteRootFile(DisplacementMap,Detector,ss_outfile.str());
     }
 
     // Start the session to calculate E map
@@ -150,6 +203,7 @@ int main(int argc, char** argv) {
         std::cout << "Write Emap to File ..." << std::endl;
         WriteEmapRoot(EMap,Detector);
     }
+
 
     std::cout << "End of program after "<< std::difftime(std::time(NULL),timer) << " s" << std::endl;
 
@@ -185,7 +239,7 @@ int main(int argc, char** argv) {
 //    }
 //}
 
-Laser ReadRecoTracks(int argc, char** argv)
+Laser ReadRecoTracks(std::vector<std::string> InputFiles)
 {
     // Create Laser (collection of laser tracks) this will be the returned object
     Laser TrackSelection;
@@ -207,11 +261,11 @@ Laser ReadRecoTracks(int argc, char** argv)
     TChain* RecoTrackTree = new TChain("tracks");
     
     // Loop through all input files and add them to the TChain
-    for(int arg = 1; arg < argc; arg++)
+    for(auto const& InFile : InputFiles)
     {
         // Open input file and add to TChains
-        LaserInfoTree->Add(argv[arg]);
-        RecoTrackTree->Add(argv[arg]);
+        LaserInfoTree->Add(InFile.c_str());
+        RecoTrackTree->Add(InFile.c_str());
     }
     
     // Assigne branch addresses
@@ -269,7 +323,7 @@ Laser ReadRecoTracks(int argc, char** argv)
 } // end ReadRecoTracks
 
 
-void WriteRootFile(std::vector<ThreeVector<float>>& InterpolationData, TPCVolumeHandler& TPCVolume)
+void WriteRootFile(std::vector<ThreeVector<float>>& InterpolationData, TPCVolumeHandler& TPCVolume, std::string OutputFilename)
 { 
     // Store TPC properties which are important for the TH3 generation
     ThreeVector<unsigned long> Resolution = TPCVolume.GetDetectorResolution();
@@ -307,7 +361,8 @@ void WriteRootFile(std::vector<ThreeVector<float>>& InterpolationData, TPCVolume
     } // end zbin loop
     
     // Open and recreate output file
-    TFile OutputFile("RecoCorr.root", "recreate");
+
+    TFile OutputFile(OutputFilename.c_str(), "recreate");
     
     // Loop over space coordinates
     for(unsigned coord = 0; coord < RecoDisplacement.size(); coord++)
