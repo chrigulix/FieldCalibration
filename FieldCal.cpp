@@ -410,7 +410,7 @@ void LaserInterpThread(Laser& LaserTrackSet, const Laser& InterpolationLaser, co
 // The root file does not have to be the argument
 std::vector<ThreeVector<float>> Elocal(TPCVolumeHandler& TPCVolume)
 {
-    TFile *InFile = new TFile("RecoCorr.root","READ");
+    TFile *InFile = new TFile("RecoCorrection.root","READ");
 
     TH3F *Dx = (TH3F*) InFile->Get("Reco_Displacement_X");
     TH3F *Dy = (TH3F*) InFile->Get("Reco_Displacement_Y");
