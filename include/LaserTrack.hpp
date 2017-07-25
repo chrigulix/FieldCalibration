@@ -55,7 +55,8 @@ public:
   enum DisplacementAlgo
   {
       TrackDerivative,
-      ClosestPoint,
+      ClosestPointCorr,
+      ClosestPointDist,
       LinearStretch
   };
   

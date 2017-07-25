@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
         if (CorrMapFlag) {
             // Choose displacement algorithm (available so far: TrackDerivative, ClosestPoint, or LinearStretch)
             // Suggestion: stay with ClosestPoint Algorithm
-            LaserTrackSet.CalcDisplacement(LaserTrack::ClosestPoint);
+            LaserTrackSet.CalcDisplacement(LaserTrack::ClosestPointCorr);
 
             // Now the laser data are based on the reconstructed coordinate. For CORRECTION MAP, they are good enough.
             // No need to prepare to set true coordinate
@@ -107,10 +107,10 @@ int main(int argc, char** argv) {
 
         // Caculating now the displacement map of distortion based on the true coordinates
         // Remember to turn the "CorrMapFlag" off
-        else {
+        if (!CorrMapFlag) {
             // Choose displacement algorithm (available so far: TrackDerivative, ClosestPoint, or LinearStretch)
             // Suggestion: stay with ClosestPoint Algorithm
-            LaserTrackSet.CalcDisplacement(LaserTrack::ClosestPoint);
+            LaserTrackSet.CalcDisplacement(LaserTrack::ClosestPointDist);
 
             // Now the laser tracks are based on the reconstructed coordinate. If require DISTORTION MAP as output, set the base on the true coordinate
             // Add displacement to reconstructed track to change to detector coordinates (only for map generation)

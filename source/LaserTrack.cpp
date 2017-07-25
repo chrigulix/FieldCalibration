@@ -294,7 +294,8 @@ void LaserTrack::CalcDisplacement(const DisplacementAlgo& Algo)
     switch(Algo)
     {
         case TrackDerivative : DerivativeDisplAlgo(); break;
-        case ClosestPoint : ClosestPointDisplAlgo(); break;
+        case ClosestPointCorr : ClosestPointDisplAlgo(); break;
+        case ClosestPointDist : ClosestPointDisplAlgo(false); break;
         case LinearStretch : LinearStretchDisplAlgo(); break;
         default : ClosestPointDisplAlgo(); break;
     }

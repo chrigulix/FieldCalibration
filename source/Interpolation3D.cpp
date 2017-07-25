@@ -236,8 +236,8 @@ ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet,
     else // if the matrix can't be inverted
     {
         // Set displacement zero and end function immediately!
-        std::cout<<"The transition matrix for this D grid point is not invertable. "<<std::endl;
-        InterpolatedDispl = {-99999.0,-99999.0,-99999.0};
+//        std::cout<<"The transition matrix for this D grid point is not invertable. "<<std::endl;
+        InterpolatedDispl = {0.0,0.0,0.0};
         return InterpolatedDispl;
     }
     
@@ -246,8 +246,8 @@ ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet,
     if(BaryCoord[0] <= 0.0 || BaryCoord[1] <= 0.0 || BaryCoord[2] <= 0.0 || BaryCoord[3] <= 0.0)
     {
         // Set displacement zero and end function immediately!
-        std::cout<<"There is negative barycentric coordinate at this D grid point! "<<std::endl;
-        InterpolatedDispl = {-99999.0,-99999.0,-99999.0};
+//        std::cout<<"There is negative barycentric coordinate at this D grid point! "<<std::endl;
+        InterpolatedDispl = {0.0,0.0,0.0};
         return InterpolatedDispl;
     }
     
@@ -326,8 +326,8 @@ ThreeVector<float> EInterpolateCGAL(std::vector<ThreeVector<float>>& En, std::ve
     else // if the matrix can't be inverted
     {
         // Set E field to zero and end function immediately!
-        std::cout<<"The transition matrix for this E grid point is not invertable. "<<std::endl;
-        InterpolatedEfield = {-99999.0,-99999.0,-99999.0};
+//        std::cout<<"The transition matrix for this E grid point is not invertable. "<<std::endl;
+        InterpolatedEfield = {273.0,0.0,0.0};
         return InterpolatedEfield;
     }
 
@@ -336,8 +336,8 @@ ThreeVector<float> EInterpolateCGAL(std::vector<ThreeVector<float>>& En, std::ve
     if(BaryCoord[0] <= 0.0 || BaryCoord[1] <= 0.0 || BaryCoord[2] <= 0.0 || BaryCoord[3] <= 0.0)
     {
         // Set E field to zero and end function immediately!
-        std::cout<<"There is negative barycentric coordinate at this E grid point! "<<std::endl;
-        InterpolatedEfield = {-99999.0,-99999.0,-99999.0};
+//        std::cout<<"There is negative barycentric coordinate at this E grid point! "<<std::endl;
+        InterpolatedEfield = {273.0,0.0,0.0};
         return InterpolatedEfield;
     }
 
@@ -362,7 +362,7 @@ std::vector<ThreeVector<float>> InterpolateMap(const std::vector<LaserTrack>& La
     
     // Initialize temporary location vector
     ThreeVector<float> Location;
-    std::cout<<"xmax: "<< TPC.GetDetectorOffset()[0] + TPC.GetDetectorSize()[0]/static_cast<float>(TPC.GetDetectorResolution()[0]) * (TPC.GetDetectorResolution()[0]-1)<<std::endl;
+
     // Loop over all xbins of the TPC
     for(unsigned xbin = 0; xbin < TPC.GetDetectorResolution()[0]; xbin++) 
     {
