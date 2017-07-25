@@ -38,8 +38,10 @@ private:
   
   // Displacement algorithms
   void DerivativeDisplAlgo();
-  void ClosestPointDisplAlgo();
-  void LinearStretchDisplAlgo();
+  void ClosestPointDisplAlgo(bool CorrMapFlag);
+  void LinearStretchDisplAlgo(bool CorrMapFlag);
+
+  bool CorrMapFlag;//For ClosestPointDisplAlgo
   
 public:
   LaserTrack();
@@ -54,7 +56,8 @@ public:
   enum DisplacementAlgo
   {
       TrackDerivative,
-      ClosestPoint,
+      ClosestPointCorr,
+      ClosestPointDist,
       LinearStretch
   };
   
