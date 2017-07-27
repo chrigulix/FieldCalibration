@@ -61,8 +61,8 @@ void WriteRootFile(std::vector<ThreeVector<float>>&, TPCVolumeHandler&, std::str
 void WriteTextFile(std::vector<ThreeVector<float>>&);
 void LaserInterpThread(Laser&, const Laser&, const Delaunay&);
 std::vector<Laser> ReachedExitPoint(const Laser&, float);
-std::vector<ThreeVector<float>> Elocal(TPCVolumeHandler& );
-std::vector<ThreeVector<float>> Eposition(TPCVolumeHandler& );
+std::vector<ThreeVector<float>> Elocal(TPCVolumeHandler&, const char * );
+std::vector<ThreeVector<float>> Eposition(TPCVolumeHandler&, const char * );
 void WriteEmapRoot(std::vector<ThreeVector<float>>& Efield, TPCVolumeHandler& TPCVolume);
 
 // Set if the output displacement map is correction map (on reconstructed coordinate) or distortion map (on true coordinate)
@@ -118,13 +118,16 @@ int main(int argc, char** argv) {
     // Create the detector volume
     TPCVolumeHandler Detector(DetectorSize, DetectorOffset, DetectorResolution);
 
+    std::stringstream ss_outfile;
+    float float_max = std::numeric_limits<float>::max();
+    ThreeVector<float > Empty = {float_max,float_max,float_max};
   
     if(DoCorr){
         std::vector<std::vector<ThreeVector<float>>> DisplMapsHolder;
         DisplMapsHolder.resize(n_split);
 
-        std::stringstream ss_outfile;
-        ss_outfile << "RecoDispl-" << n_split << ".root";
+        float float_max = std::numeric_limits<float>::max();
+        ThreeVector<float > Empty = {float_max,float_max,float_max};
 
         // Read data and store it to a Laser object
         std::cout << "Reading data..." << std::endl;
@@ -142,24 +145,19 @@ int main(int argc, char** argv) {
             std::cout << "Find track displacements... " << std::endl;
           
             if (CorrMapFlag) {
-                ss_outfile << "RecoCorrection-" << n_split << ".root";
-                // Choose displacement algorithm (available so far: TrackDerivative, ClosestPoint, or LinearStretch)
-                // Suggestion: stay with ClosestPoint Algorithm
+                if(set==0){ss_outfile << "RecoCorrection-" << n_split << ".root";}
+                // Suggestion: Choose ClosestPoint Algorithm
                 LaserSets[set].CalcDisplacement(LaserTrack::ClosestPointCorr);
-
-                // Now the laser data are based on the reconstructed coordinate. For CORRECTION MAP, they are good enough.
-                // No need to prepare to set true coordinate
+                // Now the laser data are based on the reconstructed coordinate.
+                // For CORRECTION MAP, no need to set the mesh on true space points
             }
-            // Caculating now the displacement map of distortion based on the true coordinates
-            // Remember to turn the "CorrMapFlag" off
-            if (!CorrMapFlag) {
-                ss_outfile << "TrueDistortion-" << n_split << ".root";
-                // Choose displacement algorithm (available so far: TrackDerivative, ClosestPoint, or LinearStretch)
-                // Suggestion: stay with ClosestPoint Algorithm
-                LaserSets[set].CalcDisplacement(LaserTrack::ClosestPointDist);
 
-                // Now the laser tracks are based on the reconstructed coordinate. If require DISTORTION MAP as output, set the base on the true coordinate
-                // Add displacement to reconstructed track to change to detector coordinates (only for map generation)
+            if (!CorrMapFlag) {
+                if(set==0){ss_outfile << "TrueDistortion-" << n_split << ".root";}
+                // Suggestion: Choose ClosestPoint Algorithm
+                LaserSets[set].CalcDisplacement(LaserTrack::ClosestPointDist);
+                // Now the laser tracks are based on the reconstructed coordinate.
+                // For DISTORTION MAP as output, set the mesh on the true space points
                 LaserSets[set].AddCorrectionToReco();
             }
 
@@ -173,23 +171,38 @@ int main(int argc, char** argv) {
         }
         // Now we go on to create an unified displacement map
         std::vector<ThreeVector<float>> DisplacementMap(DisplMapsHolder.front().size(), ThreeVector<float>(0.,0.,0.));
+        std::vector<float> Nvalid(DisplMapsHolder.front().size(), 0.);
 
-        for (auto const& SubMap: DisplMapsHolder){
+        for (auto & SubMap: DisplMapsHolder){
             for (unsigned int idx=0; idx < DisplacementMap.size(); idx++){
-                DisplacementMap[idx] = DisplacementMap[idx] + SubMap[idx] / static_cast<float>(n_split);
+//                DisplacementMap[idx] = DisplacementMap[idx] + SubMap[idx] / static_cast<float>(n_split);
+                if(SubMap[idx] != Empty){
+                    DisplacementMap[idx] = DisplacementMap[idx] + SubMap[idx];
+                    Nvalid[idx]++;
+                }
             }
         }
+
+        for (unsigned int idx=0; idx < DisplacementMap.size(); idx++){
+            if(Nvalid[idx]==0){
+                // Set those bin with non valid number into float max again
+                DisplacementMap[idx]= {float_max,float_max,float_max};
+            }
+            else{
+                DisplacementMap[idx] = DisplacementMap[idx] / Nvalid[idx];
+            }
+        }
+
         // Fill displacement map into TH3 histograms and write them to file
         std::cout << "Write to File ..." << std::endl;
         WriteRootFile(DisplacementMap,Detector,ss_outfile.str());
     }
 
-    // Start the session to calculate E map
     // The Emap calculation works when the input is correction map
     if(CorrMapFlag && DoEmap){
         // The vector of Position and En must have the exactly the same index to make the interpolation (EInterpolateMap()) work
-        std::vector<ThreeVector<float>> Position = Eposition(Detector);
-        std::vector<ThreeVector<float>> En = Elocal(Detector);
+        std::vector<ThreeVector<float>> Position = Eposition(Detector, ss_outfile.str().c_str());
+        std::vector<ThreeVector<float>> En = Elocal(Detector, ss_outfile.str().c_str());
 
         // Create mesh for Emap
         std::cout << "Generate mesh for E field..." << std::endl;
@@ -408,9 +421,10 @@ void LaserInterpThread(Laser& LaserTrackSet, const Laser& InterpolationLaser, co
 
 
 // The root file does not have to be the argument
-std::vector<ThreeVector<float>> Elocal(TPCVolumeHandler& TPCVolume)
+std::vector<ThreeVector<float>> Elocal(TPCVolumeHandler& TPCVolume, const char * root_name)
 {
-    TFile *InFile = new TFile("RecoCorrection.root","READ");
+//    TFile *InFile = new TFile("RecoCorrection.root","READ");
+    TFile *InFile = new TFile(root_name,"READ");
 
     TH3F *Dx = (TH3F*) InFile->Get("Reco_Displacement_X");
     TH3F *Dy = (TH3F*) InFile->Get("Reco_Displacement_Y");
@@ -449,11 +463,12 @@ std::vector<ThreeVector<float>> Elocal(TPCVolumeHandler& TPCVolume)
     return En;
 }
 
-std::vector<ThreeVector<float>> Eposition(TPCVolumeHandler& TPCVolume)
+std::vector<ThreeVector<float>> Eposition(TPCVolumeHandler& TPCVolume, const char * root_name)
 {
     ThreeVector<unsigned long> Resolution = TPCVolume.GetDetectorResolution();
 
-    TFile *InFile = new TFile("RecoCorr.root","READ");
+//    TFile *InFile = new TFile("RecoCorrection.root","READ");
+    TFile *InFile = new TFile(root_name,"READ");
 
     TH3F *Dx = (TH3F*) InFile->Get("Reco_Displacement_X");
     TH3F *Dy = (TH3F*) InFile->Get("Reco_Displacement_Y");
