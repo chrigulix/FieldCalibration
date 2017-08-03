@@ -67,9 +67,9 @@ void WriteEmapRoot(std::vector<ThreeVector<float>>& Efield, TPCVolumeHandler& TP
 
 // Set if the output displacement map is correction map (on reconstructed coordinate) or distortion map (on true coordinate)
 // By default set it as correction map so we could continue calculate the E field map
-bool CorrMapFlag = true;
-bool DoCorr = true;
-bool DoEmap = true;
+bool CorrMapFlag = false;
+bool DoCorr = false;
+bool DoEmap = false;
 
 // Main function
 int main(int argc, char** argv) {
@@ -80,7 +80,7 @@ int main(int argc, char** argv) {
     // specify the amount of downsampling
     unsigned int n_split = 1;
 
-    // If there are to few input arguments abord
+    // If there are to few input arguments, abort!
     if(argc < 2)
     {
         std::cerr << "ERROR: Too few arguments, use ./LaserCal <options> <input file names>" << std::endl;
@@ -89,10 +89,19 @@ int main(int argc, char** argv) {
     }
     // Lets handle all options
     int c;
-    while((c = getopt(argc, argv, ":d:")) != -1){
+    while((c = getopt(argc, argv, ":d:CDE")) != -1){
         switch(c){
             case 'd':
                 n_split = atoi(optarg);
+                break;
+            case 'C':
+                CorrMapFlag = true;
+                break;
+            case 'D':
+                DoCorr = true;
+                break;
+            case 'E':
+                DoEmap = true;
                 break;
             // put in your case here. also add it to the while loop as an option or as required argument
         }
@@ -121,6 +130,14 @@ int main(int argc, char** argv) {
     std::stringstream ss_outfile;
     float float_max = std::numeric_limits<float>::max();
     ThreeVector<float > Empty = {float_max,float_max,float_max};
+
+    // Set the name for Dmap
+    if (CorrMapFlag) {
+        ss_outfile << "RecoCorrection-" << n_split << ".root";
+    }
+    if (!CorrMapFlag) {
+        ss_outfile << "TrueDistortion-" << n_split << ".root";
+    }
   
     if(DoCorr){
         std::vector<std::vector<ThreeVector<float>>> DisplMapsHolder;
@@ -145,7 +162,6 @@ int main(int argc, char** argv) {
             std::cout << "Find track displacements... " << std::endl;
           
             if (CorrMapFlag) {
-                if(set==0){ss_outfile << "RecoCorrection-" << n_split << ".root";}
                 // Suggestion: Choose ClosestPoint Algorithm
                 LaserSets[set].CalcDisplacement(LaserTrack::ClosestPointCorr);
                 // Now the laser data are based on the reconstructed coordinate.
@@ -153,7 +169,6 @@ int main(int argc, char** argv) {
             }
 
             if (!CorrMapFlag) {
-                if(set==0){ss_outfile << "TrueDistortion-" << n_split << ".root";}
                 // Suggestion: Choose ClosestPoint Algorithm
                 LaserSets[set].CalcDisplacement(LaserTrack::ClosestPointDist);
                 // Now the laser tracks are based on the reconstructed coordinate.
@@ -466,7 +481,7 @@ std::vector<ThreeVector<float>> Elocal(TPCVolumeHandler& TPCVolume, const char *
 std::vector<ThreeVector<float>> Eposition(TPCVolumeHandler& TPCVolume, const char * root_name)
 {
     ThreeVector<unsigned long> Resolution = TPCVolume.GetDetectorResolution();
-
+    std::cout<<"name: "<<root_name<<std::endl;
 //    TFile *InFile = new TFile("RecoCorrection.root","READ");
     TFile *InFile = new TFile(root_name,"READ");
 
