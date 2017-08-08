@@ -70,6 +70,7 @@ void WriteEmapRoot(std::vector<ThreeVector<float>>& Efield, TPCVolumeHandler& TP
 bool CorrMapFlag = false;
 bool DoCorr = false;
 bool DoEmap = false;
+bool Merge2side = false;
 
 // Main function
 int main(int argc, char** argv) {
@@ -111,7 +112,7 @@ int main(int argc, char** argv) {
     std::vector<std::string> InputFiles;
     unsigned int n_files = 0;
     for (int i = optind; i < argc; i++) {
-        std::string filename (argv[i]);
+        std::string filename(argv[i]);
         // check if file exists
         std::ifstream f(filename.c_str());
         if (!f.good()) {
@@ -119,6 +120,50 @@ int main(int argc, char** argv) {
         }
         InputFiles.push_back(filename);
     }
+
+
+//    // Now handle input files
+//    std::vector<std::string> InputFiles1;
+//    std::vector<std::string> InputFiles2;
+//    unsigned int n_files = 0;
+//    for (int i = optind; i < argc; i++) {
+//        std::string filename (argv[i]);
+//        // check if file exists
+//        std::ifstream f(filename.c_str());
+//        if (!f.good()) {
+//            throw std::runtime_error(std::string("file does not exist: ") + filename);
+//        }
+//
+//        TChain* tree = new TChain("lasers");
+//        tree->Add(filename.c_str());
+//        int side;
+//        tree->SetBranchAddress("side",&side);
+//        TCanvas *c1;
+//        tree->Draw("side>>hside","");
+//        TH1F *hside = (TH1F*)gDirectory->Get("hside");
+//        int LCS = hside->GetMean();
+//        c1->Close();
+//        delete tree;
+//
+//        if(LCS==1){
+//            InputFiles1.push_back(filename);
+//        }
+//        else if(LCS==2){
+//            InputFiles2.push_back(filename);
+//        }
+//        else{
+//            std::cerr << "The laser system is not labeled correctly." << std::endl;
+//        }
+//    }
+//
+//    if(Merge2side){
+//        InputFiles1.insert(InputFiles1.end(), InputFiles2.begin(), InputFiles2.end());
+//    }
+//    else{
+//        if(InputFiles1.empty() || InputFiles2.empty()){
+//            std::cerr << "Please provide the laser data from 2 sides." << std::endl;
+//        }
+//    }
 
     // Choose detector dimensions, coordinate system offset and resolutions
     ThreeVector<float> DetectorSize = {256.04, 232.5, 1036.8};
@@ -149,9 +194,13 @@ int main(int argc, char** argv) {
         // Read data and store it to a Laser object
         std::cout << "Reading data..." << std::endl;
         Laser FullTracks = ReadRecoTracks(InputFiles);
-      
+//        Laser FullTracks1 = ReadRecoTracks(InputFiles1);
+//        Laser FullTracks2 = ReadRecoTracks(InputFiles2);
+
         // Here we split the laser set in multiple laser sets...
         std::vector<Laser> LaserSets = SplitTrackSet(FullTracks, n_split);
+//        std::vector<Laser> LaserSets1 = SplitTrackSet(FullTracks1, n_split);
+//        std::vector<Laser> LaserSets2 = SplitTrackSet(FullTracks2, n_split);
       
         // Now we loop over each individual set and compute the displacement vectors.
         // TODO: This could be parallelized
@@ -238,34 +287,6 @@ int main(int argc, char** argv) {
 
 } // end main
 
-// To check if the input root files contain the laser data from two laser system (two side)
-//bool Twolasersys(int argc, char** argv)
-//{
-//    if(argc != 3){
-//        std::cerr << "ERROR: Not right arguments. Please use ./FieldCal <name_LCS1.root> <name_LCS2.root>" << std::endl;
-//        return false; //0
-//    }
-//    if(argc == 3){
-//        int LCS1,LCS2;
-//        TChain* tree1 = new TChain("laser1");
-//        tree1->Add(argv[1]);
-//        tree1->SetBranchAddress("LCS1",&LCS1);
-//        TH1F* h1;
-//        tree1->Draw("LCS1>>h1","");
-//        LCS1 = h1->GetMean();
-//
-//        TChain* tree2 = new TChain("laser2");
-//        tree2->Add(argv[2]);
-//        tree2->SetBranchAddress("LCS2",&LCS2);
-//        TH1F* h2;
-//        tree2->Draw("LCS1>>h2","");
-//        LCS2 = h2->GetMean();
-//
-//        // A rough check here. Risk that one single input root file has mixed data from two laser system
-//        if((LCS1-1.5)*(LCS2-1.5)<0){ return true; }
-//        else{return false;}
-//    }
-//}
 
 Laser ReadRecoTracks(std::vector<std::string> InputFiles)
 {
@@ -275,14 +296,12 @@ Laser ReadRecoTracks(std::vector<std::string> InputFiles)
     // Initialize read variables, the pointers for more complex data structures 
     // are very important for Root. Rene Brun in hell (do you see what I did there?)
     int EventNumber;
-    
     std::vector<TVector3> TrackSamples;
     std::vector<TVector3>* pTrackSamples = &TrackSamples;
-    
     TVector3 EntryPoint;
     TVector3* pEntryPoint = &EntryPoint;
     TVector3 ExitPoint;
-    TVector3* pExitPoint =&ExitPoint;
+    TVector3* pExitPoint = &ExitPoint;
     
     // Open TChains to store all trees
     TChain* LaserInfoTree = new TChain("lasers");
@@ -296,7 +315,7 @@ Laser ReadRecoTracks(std::vector<std::string> InputFiles)
         RecoTrackTree->Add(InFile.c_str());
     }
     
-    // Assigne branch addresses
+    // Assign branch addresses
     LaserInfoTree->SetBranchAddress("entry",&pEntryPoint);
     LaserInfoTree->SetBranchAddress("exit", &pExitPoint);
     RecoTrackTree->SetBranchAddress("track",&pTrackSamples);
@@ -311,7 +330,10 @@ Laser ReadRecoTracks(std::vector<std::string> InputFiles)
             // Get tree entries of both trees
             LaserInfoTree->GetEntry(tree_index);
             RecoTrackTree->GetEntry(tree_index);
-            
+
+            // Sorting wouldn't change the track physically
+            // For closestpoint method, it doesn't matter, while to derivative method yes
+            // But for the moment, when reconstruction has a big problem, it is not encouraged to use derivative method
 
             // This here sorts the tracks by their distance to the EntryPoint. The algorithm uses a lambda
             // It will compare the distance to the EntryPoint of two vector entries A & B
@@ -319,11 +341,11 @@ Laser ReadRecoTracks(std::vector<std::string> InputFiles)
                 {
                     A -= EntryPoint;
                     B -= EntryPoint;
-                    // Her only the squared distance was used to avoid costly sqrt operations
+                    // Here only the squared distance was used to avoid costly sqrt operations
                     return A.Mag2() > B.Mag2();
-                }    
+                }
             );
-            
+
             // This step will erase all double entries. First std::unique shifts every double to the end
             // of the vector and gives back the new end point of the data set. After that we erase the HistRange
             // between this new end and the real end of the vector

@@ -330,7 +330,7 @@ void LaserTrack::AddCorrectionToReco()
     for(unsigned long sample = 0; sample < LaserReco.size(); sample++)
     {
         // Add displacement to reconstructed track position
-        LaserReco[sample] -= LaserDisplacement[sample];
+        LaserReco[sample] += LaserDisplacement[sample];
     }
 }
 
