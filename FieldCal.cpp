@@ -67,9 +67,9 @@ void WriteEmapRoot(std::vector<ThreeVector<float>>& Efield, TPCVolumeHandler& TP
 
 // Set if the output displacement map is correction map (on reconstructed coordinate) or distortion map (on true coordinate)
 // By default set it as correction map so we could continue calculate the E field map
-bool CorrMapFlag = false;
-bool DoCorr = false;
-bool DoEmap = false;
+bool CorrMapFlag = false; // Calculate correction vectors for true; Calculate distortion vectors for false
+bool DoCorr = false; // Calculate correction map for true; Skip calculation of correction map for false
+bool DoEmap = false; // Calculate electric map for true; Skip calculation of electric map for false
 bool Merge2side = false;
 
 // Main function
@@ -108,62 +108,62 @@ int main(int argc, char** argv) {
         }
     }
 
-    // Now handle input files
-    std::vector<std::string> InputFiles;
-    unsigned int n_files = 0;
-    for (int i = optind; i < argc; i++) {
-        std::string filename(argv[i]);
-        // check if file exists
-        std::ifstream f(filename.c_str());
-        if (!f.good()) {
-            throw std::runtime_error(std::string("file does not exist: ") + filename);
-        }
-        InputFiles.push_back(filename);
-    }
-
-
 //    // Now handle input files
-//    std::vector<std::string> InputFiles1;
-//    std::vector<std::string> InputFiles2;
+//    std::vector<std::string> InputFiles;
 //    unsigned int n_files = 0;
 //    for (int i = optind; i < argc; i++) {
-//        std::string filename (argv[i]);
+//        std::string filename(argv[i]);
 //        // check if file exists
 //        std::ifstream f(filename.c_str());
 //        if (!f.good()) {
 //            throw std::runtime_error(std::string("file does not exist: ") + filename);
 //        }
-//
-//        TChain* tree = new TChain("lasers");
-//        tree->Add(filename.c_str());
-//        int side;
-//        tree->SetBranchAddress("side",&side);
-//        TCanvas *c1;
-//        tree->Draw("side>>hside","");
-//        TH1F *hside = (TH1F*)gDirectory->Get("hside");
-//        int LCS = hside->GetMean();
-//        c1->Close();
-//        delete tree;
-//
-//        if(LCS==1){
-//            InputFiles1.push_back(filename);
-//        }
-//        else if(LCS==2){
-//            InputFiles2.push_back(filename);
-//        }
-//        else{
-//            std::cerr << "The laser system is not labeled correctly." << std::endl;
-//        }
+//        InputFiles.push_back(filename);
 //    }
-//
-//    if(Merge2side){
-//        InputFiles1.insert(InputFiles1.end(), InputFiles2.begin(), InputFiles2.end());
-//    }
-//    else{
-//        if(InputFiles1.empty() || InputFiles2.empty()){
-//            std::cerr << "Please provide the laser data from 2 sides." << std::endl;
-//        }
-//    }
+
+
+    // Now handle input files
+    std::vector<std::string> InputFiles1;
+    std::vector<std::string> InputFiles2;
+    unsigned int n_files = 0;
+    for (int i = optind; i < argc; i++) {
+        std::string filename (argv[i]);
+        // check if file exists
+        std::ifstream f(filename.c_str());
+        if (!f.good()) {
+            throw std::runtime_error(std::string("file does not exist: ") + filename);
+        }
+
+        TChain* tree = new TChain("lasers");
+        tree->Add(filename.c_str());
+        int side;
+        tree->SetBranchAddress("side",&side);
+        TCanvas *c1;
+        tree->Draw("side>>hside","");
+        TH1F *hside = (TH1F*)gDirectory->Get("hside");
+        int LCS = hside->GetMean();
+        c1->Close();
+        delete tree;
+
+        if(LCS==1){
+            InputFiles1.push_back(filename);
+        }
+        else if(LCS==2){
+            InputFiles2.push_back(filename);
+        }
+        else{
+            std::cerr << "The laser system is not labeled correctly." << std::endl;
+        }
+    }
+
+    if(Merge2side){
+        InputFiles1.insert(InputFiles1.end(), InputFiles2.begin(), InputFiles2.end());
+    }
+    else{
+        if(InputFiles1.empty() || InputFiles2.empty()){
+            std::cerr << "Please provide the laser data from 2 sides." << std::endl;
+        }
+    }
 
     // Choose detector dimensions, coordinate system offset and resolutions
     ThreeVector<float> DetectorSize = {256.04, 232.5, 1036.8};
@@ -194,13 +194,13 @@ int main(int argc, char** argv) {
         // Read data and store it to a Laser object
         std::cout << "Reading data..." << std::endl;
         Laser FullTracks = ReadRecoTracks(InputFiles);
-//        Laser FullTracks1 = ReadRecoTracks(InputFiles1);
-//        Laser FullTracks2 = ReadRecoTracks(InputFiles2);
+        Laser FullTracks1 = ReadRecoTracks(InputFiles1);
+        Laser FullTracks2 = ReadRecoTracks(InputFiles2);
 
         // Here we split the laser set in multiple laser sets...
         std::vector<Laser> LaserSets = SplitTrackSet(FullTracks, n_split);
-//        std::vector<Laser> LaserSets1 = SplitTrackSet(FullTracks1, n_split);
-//        std::vector<Laser> LaserSets2 = SplitTrackSet(FullTracks2, n_split);
+        std::vector<Laser> LaserSets1 = SplitTrackSet(FullTracks1, n_split);
+        std::vector<Laser> LaserSets2 = SplitTrackSet(FullTracks2, n_split);
       
         // Now we loop over each individual set and compute the displacement vectors.
         // TODO: This could be parallelized
@@ -222,7 +222,8 @@ int main(int argc, char** argv) {
                 LaserSets[set].CalcDisplacement(LaserTrack::ClosestPointDist);
                 // Now the laser tracks are based on the reconstructed coordinate.
                 // For DISTORTION MAP as output, set the mesh on the true space points
-                LaserSets[set].AddCorrectionToReco();
+                // the FALSE stands for opposite direction of the distortion direction (we calculate) and the correction direction (we will do here)
+                LaserSets[set].AddCorrectionToReco(false);
             }
 
             // Create delaunay mesh
@@ -286,6 +287,55 @@ int main(int argc, char** argv) {
 
 
 } // end main
+
+void TwoSideIterationDisp( Laser LaserSets1 , Laser LaserSets2 , int Nstep, bool Corr){
+
+    float float_max = std::numeric_limits<float>::max();
+    Laser LaserRecoOrigin1 = LaserSets1;
+    Laser LaserRecoOrigin2 = LaserSets2;
+
+    for(int n=0; n<Nstep; n++){
+
+        LaserSets1.CalcDisplacement(LaserTrack::ClosestPointCorr, Nstep-n);
+        Delaunay Mesh1 = TrackMesher(LaserSets1.GetTrackSet());
+
+        LaserSets2.CalcDisplacement(LaserTrack::ClosestPointCorr, Nstep-n);
+        Delaunay Mesh2 = TrackMesher(LaserSets2.GetTrackSet());
+
+        for(unsigned long track = 0; track < LaserSets1.GetTrackSet().size(); track++)
+        {
+            // reserve the space for the correction vector for each track
+            std::vector<ThreeVector<float>> CorrPart1(LaserSets1.GetTrackSet()[track].GetNumberOfSamples(),ThreeVector<float>(float_max,float_max,float_max));
+
+            // Loop over data points (samples) of each track
+            for(unsigned long sample = 0; sample < LaserSets1.GetTrackSet()[track].GetNumberOfSamples(); sample++) {
+                CorrPart1.push_back(InterpolateCGAL(LaserSets2.GetTrackSet(), Mesh2, LaserSets1.GetTrackSet()[track].GetSamplePosition(sample)));
+            }
+            LaserSets1.GetTrackSet()[track].AddCorrectionToRecoPart(CorrPart1);
+        }
+
+        for(unsigned long track = 0; track < LaserSets2.GetTrackSet().size(); track++)
+        {
+            // reserve the space for the correction vector for each track
+            std::vector<ThreeVector<float>> CorrPart2(LaserSets2.GetTrackSet()[track].GetNumberOfSamples(),ThreeVector<float>(float_max,float_max,float_max));
+
+            // Loop over data points (samples) of each track
+            for(unsigned long sample = 0; sample < LaserSets2.GetTrackSet()[track].GetNumberOfSamples(); sample++) {
+                CorrPart2.push_back(InterpolateCGAL(LaserSets1.GetTrackSet(), Mesh1, LaserSets2.GetTrackSet()[track].GetSamplePosition(sample)));
+            }
+            LaserSets2.GetTrackSet()[track].AddCorrectionToRecoPart(CorrPart2);
+        }
+
+        // when it becomes the last step, we require the biased track points will be dragged to the true track lines
+        if(n == (Nstep-1)){
+            // the TRUE stands for opposite direction of the distortion direction (we calculate) and the correction direction (we will do here)
+            LaserSets1.AddCorrectionToReco(true);
+            LaserSets2.AddCorrectionToReco(true);
+        }
+    }
+    LaserSets1.SetDisplacement(LaserRecoOrigin1,Corr);
+    LaserSets2.SetDisplacement(LaserRecoOrigin2,Corr);
+}
 
 
 Laser ReadRecoTracks(std::vector<std::string> InputFiles)

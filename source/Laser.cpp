@@ -68,23 +68,37 @@ void Laser::DistortTrackSet(std::string MapFileName, TPCVolumeHandler& TPCVolume
 }
 
 // Applies correction algorithm on all tracks of a laser track set
-void Laser::CalcDisplacement(const LaserTrack::DisplacementAlgo& Algo)
+void Laser::CalcDisplacement(const LaserTrack::DisplacementAlgo& Algo, int Nstep)
 {
     // Loop over all tracks, and calculate displacement
     for(auto& Track : LaserTrackSet)
     {
-        Track.CalcDisplacement(Algo);
+        Track.CalcDisplacement(Algo, Nstep);
     }
 }
 
 // Add displacement to the reco position. This is important for generating a displacement map in non-distorted detector coordinates
-void Laser::AddCorrectionToReco()
+void Laser::AddCorrectionToReco(bool plus=true)
 {
     // Loop over all tracks, and calculate displacement
     for(auto& Track : LaserTrackSet)
     {
-        Track.AddCorrectionToReco();
+        if(plus){ Track.AddCorrectionToRecoP(); }
+        if(!plus){ Track.AddCorrectionToRecoM(); }
     }
+}
+
+// Add displacement to the reco position. This is important for generating a displacement map in non-distorted detector coordinates
+void Laser::SetDisplacement(Laser LaserReco, bool Corr=true)
+{
+    // Loop over all tracks, and calculate displacement
+    if(LaserTrackSet.size()==LaserReco.GetTrackSet().size()){
+        for(int i=0;i<LaserTrackSet.size();i++)
+        {
+            LaserTrackSet[i].Displacement(LaserReco.GetTrackSet()[i],Corr);
+        }
+    }
+
 }
 
 void Laser::InterpolateTrackSet(const std::vector<LaserTrack>& LaserTracks, const Delaunay& Mesh)
