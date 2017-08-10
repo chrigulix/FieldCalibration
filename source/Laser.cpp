@@ -98,6 +98,9 @@ void Laser::SetDisplacement(Laser LaserReco, bool Corr=true)
             LaserTrackSet[i].Displacement(LaserReco.GetTrackSet()[i],Corr);
         }
     }
+    else{
+        std::cerr << "ERROR: Please supply the same size of laser sets to calculate the displacement" << std::endl;
+    }
 
 }
 

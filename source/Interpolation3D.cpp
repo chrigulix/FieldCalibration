@@ -185,7 +185,10 @@ xPoint xVectorToPoint(ThreeVector<float>& InputVector)
 }
 
 // This function Interpolates the displacement of Location within the Mesh
-ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet, const Delaunay& Mesh, ThreeVector<float> Location)
+// For InterpolateCGAL/InterpolateMap,
+// the first parameter is the one to provide the vector (e.g displacement)
+// the second parameter is the one to indicate the mesh position
+ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet, const std::vector<LaserTrack>& LaserMeshSet = LaserTrackSet, const Delaunay& Mesh, ThreeVector<float> Location)
 {
     float float_max = std::numeric_limits<float>::max();
 
@@ -218,12 +221,12 @@ ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet,
         for(unsigned column = 0; column < 3; column++)
         {
             // Fill transformation matrix elements
-            TransMatrix[row][column] = LaserTrackSet[PointIndex[column].first].GetSamplePosition(PointIndex[column].second)[row] - LaserTrackSet[PointIndex.back().first].GetSamplePosition(PointIndex.back().second)[row];
+            TransMatrix[row][column] = LaserMeshSet[PointIndex[column].first].GetSamplePosition(PointIndex[column].second)[row] - LaserMeshSet[PointIndex.back().first].GetSamplePosition(PointIndex.back().second)[row];
         }
     }
     
     // Reuse Location and store its position relative to the last vertex of the cell it is contained in
-    Location -= LaserTrackSet[PointIndex.back().first].GetSamplePosition(PointIndex.back().second);
+    Location -= LaserMeshSet[PointIndex.back().first].GetSamplePosition(PointIndex.back().second);
 
     // If the transformation matrix can be successfully inverted
     if(TransMatrix.Invert())
@@ -358,7 +361,10 @@ ThreeVector<float> EInterpolateCGAL(std::vector<ThreeVector<float>>& En, std::ve
 }
 
 // This function interpolates regularly spaced grid points of the TPC and stores them in a std::vector (can later be used in the WriteRootFile function)
-std::vector<ThreeVector<float>> InterpolateMap(const std::vector<LaserTrack>& LaserTrackSet, const Delaunay& Mesh, const TPCVolumeHandler& TPC)
+// For InterpolateCGAL/InterpolateMap,
+// the first parameter is the one to provide the vector (e.g displacement)
+// the second parameter is the one to indicate the mesh position
+std::vector<ThreeVector<float>> InterpolateMap(std::vector<LaserTrack>& LaserTrackSet, std::vector<LaserTrack>& LaserMeshSet = LaserTrackSet, const Delaunay& Mesh, const TPCVolumeHandler& TPC)
 {
     // Initialize output data structure
     std::vector<ThreeVector<float>> DisplacementMap;
@@ -386,7 +392,7 @@ std::vector<ThreeVector<float>> InterpolateMap(const std::vector<LaserTrack>& La
                 Location[2] = TPC.GetDetectorOffset()[2] + TPC.GetDetectorSize()[2]/static_cast<float>(TPC.GetDetectorResolution()[2]) * zbin;
         
                 // Fill displacement map 
-                DisplacementMap.push_back(InterpolateCGAL(LaserTrackSet,Mesh,Location));
+                DisplacementMap.push_back(InterpolateCGAL(LaserTrackSet, LaserMeshSet, Mesh,Location));
             } // end zbin loop
         } // end ybin loop
     } // end ybin loop
