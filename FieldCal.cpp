@@ -253,7 +253,7 @@ int main(int argc, char** argv) {
 
                     for(unsigned long track = 0; track < LaserSets1[set].GetTrackSet().size(); track++)
                     {
-                        std::cout<<"track--"<<track<<"--number--"<<LaserSets1[set].GetTrackSet()[track].GetNumberOfSamples()<<"||"<< std::difftime(std::time(NULL),timer) << " s"<<std::endl;
+                        std::cout<<"Laser1:::Set--"<<set<<"--Nsetp--"<<Nstep<<"--track--"<<track<<"--number--"<<LaserSets1[set].GetTrackSet()[track].GetNumberOfSamples()<<"||"<< std::difftime(std::time(NULL),timer) << " s"<<std::endl;
                         // reserve the space for the correction vector for each track
 //                        std::vector<ThreeVector<float>> CorrPart1(LaserSets1[set].GetTrackSet()[track].GetNumberOfSamples(),ThreeVector<float>(float_max,float_max,float_max));
                         std::vector<ThreeVector<float>> CorrPart1(LaserSets1[set].GetTrackSet()[track].GetNumberOfSamples(),ThreeVector<float>(0,0,0));
@@ -275,6 +275,7 @@ int main(int argc, char** argv) {
 
                     for(unsigned long track = 0; track < LaserSets2[set].GetTrackSet().size(); track++)
                     {
+                        std::cout<<"Laser2:::Set--"<<set<<"--Nsetp--"<<Nstep<<"--track--"<<track<<"--number--"<<LaserSets1[set].GetTrackSet()[track].GetNumberOfSamples()<<"||"<< std::difftime(std::time(NULL),timer) << " s"<<std::endl;
                         // reserve the space for the correction vector for each track
 //                        std::vector<ThreeVector<float>> CorrPart2(LaserSets2[set].GetTrackSet()[track].GetNumberOfSamples(),ThreeVector<float>(float_max,float_max,float_max));
                         std::vector<ThreeVector<float>> CorrPart2(LaserSets2[set].GetTrackSet()[track].GetNumberOfSamples(),ThreeVector<float>(0,0,0));
