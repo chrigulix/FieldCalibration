@@ -41,7 +41,7 @@ Delaunay TrackMesher(const std::vector<LaserTrack>&);
 Point VectorToPoint(ThreeVector<float>&);
 ThreeVector<float> PointToVector(Point&);
 
-ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet, const std::vector<LaserTrack>& LaserMeshSet, const Delaunay& Mesh, ThreeVector<float> Location);
+ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet, const std::vector<LaserTrack>& LaserMeshSet, const Delaunay& Mesh, ThreeVector<float> Location, bool Map = false);
 std::vector<ThreeVector<float>> InterpolateMap(const std::vector<LaserTrack>& LaserTrackSet, const std::vector<LaserTrack>& LaserMeshSet, const Delaunay& Mesh, const TPCVolumeHandler& TPC);
 void InterpolateTrack(LaserTrack& ,const std::vector<LaserTrack>& , const Delaunay&);
 

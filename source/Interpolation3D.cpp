@@ -188,7 +188,9 @@ xPoint xVectorToPoint(ThreeVector<float>& InputVector)
 // For InterpolateCGAL/InterpolateMap,
 // the first parameter is the one to provide the vector (e.g displacement)
 // the second parameter is the one to indicate the mesh position
-ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet, const std::vector<LaserTrack>& LaserMeshSet = LaserTrackSet, const Delaunay& Mesh, ThreeVector<float> Location)
+// If the Map flag is true: set the unknown point to float max, which is suitable for the final map establish
+// If the Map flag is false: set the unknown point to 0, which is suitable for the middle steps
+ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet, const std::vector<LaserTrack>& LaserMeshSet, const Delaunay& Mesh, ThreeVector<float> Location, bool Map)
 {
     float float_max = std::numeric_limits<float>::max();
 
@@ -242,7 +244,9 @@ ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet,
     {
         // Set displacement zero and end function immediately!
 //        std::cout<<"The transition matrix for this D grid point is not invertable. "<<std::endl;
-        InterpolatedDispl = {float_max,float_max,float_max};
+        if(Map){InterpolatedDispl = {float_max,float_max,float_max};}
+        else{InterpolatedDispl = {0,0,0};}
+//        InterpolatedDispl = {0,0,0};
         return InterpolatedDispl;
     }
     
@@ -251,9 +255,10 @@ ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet,
     if(BaryCoord[0] <= 0.0 || BaryCoord[1] <= 0.0 || BaryCoord[2] <= 0.0 || BaryCoord[3] <= 0.0)
     {
         // Set displacement zero and end function immediately!
-
 //        std::cout<<"There is negative barycentric coordinate at this D grid point! "<<std::endl;
-        InterpolatedDispl = {float_max,float_max,float_max};
+        if(Map){InterpolatedDispl = {float_max,float_max,float_max};}
+        else{InterpolatedDispl = {0,0,0};}
+//        InterpolatedDispl = {0,0,0};
         return InterpolatedDispl;
     }
     
@@ -364,7 +369,7 @@ ThreeVector<float> EInterpolateCGAL(std::vector<ThreeVector<float>>& En, std::ve
 // For InterpolateCGAL/InterpolateMap,
 // the first parameter is the one to provide the vector (e.g displacement)
 // the second parameter is the one to indicate the mesh position
-std::vector<ThreeVector<float>> InterpolateMap(std::vector<LaserTrack>& LaserTrackSet, std::vector<LaserTrack>& LaserMeshSet = LaserTrackSet, const Delaunay& Mesh, const TPCVolumeHandler& TPC)
+std::vector<ThreeVector<float>> InterpolateMap(const std::vector<LaserTrack>& LaserTrackSet, const std::vector<LaserTrack>& LaserMeshSet, const Delaunay& Mesh, const TPCVolumeHandler& TPC)
 {
     // Initialize output data structure
     std::vector<ThreeVector<float>> DisplacementMap;
@@ -391,8 +396,9 @@ std::vector<ThreeVector<float>> InterpolateMap(std::vector<LaserTrack>& LaserTra
                 // Calculate Grid point y-coordinate
                 Location[2] = TPC.GetDetectorOffset()[2] + TPC.GetDetectorSize()[2]/static_cast<float>(TPC.GetDetectorResolution()[2]) * zbin;
         
-                // Fill displacement map 
-                DisplacementMap.push_back(InterpolateCGAL(LaserTrackSet, LaserMeshSet, Mesh,Location));
+                // Fill displacement map
+                // The Map trigger is turned on for interpolation for regular grid. This will set the unknown point to float_max
+                DisplacementMap.push_back(InterpolateCGAL(LaserTrackSet, LaserMeshSet, Mesh,Location,true));
             } // end zbin loop
         } // end ybin loop
     } // end ybin loop
