@@ -57,18 +57,18 @@
 
 //bool Twolasersys(int argc, char** argv);
 Laser ReadRecoTracks(std::vector<std::string>);
-void WriteRootFile(std::vector<ThreeVector<float>>&, TPCVolumeHandler&, std::string);
+void WriteRootFile(std::vector<ThreeVector<float>>&, TPCVolumeHandler&, std::string, bool CorrMapFlag);
 void WriteTextFile(std::vector<ThreeVector<float>>&);
 void LaserInterpThread(Laser&, const Laser&, const Delaunay&);
 std::vector<Laser> ReachedExitPoint(const Laser&, float);
 std::vector<ThreeVector<float>> Elocal(TPCVolumeHandler&, const char * );
 std::vector<ThreeVector<float>> Eposition(TPCVolumeHandler&, const char * );
-void WriteEmapRoot(std::vector<ThreeVector<float>>& Efield, TPCVolumeHandler& TPCVolume);
+void WriteEmapRoot(std::vector<ThreeVector<float>>& Efield, TPCVolumeHandler& TPCVolume, ThreeVector<unsigned long> Resolution, std::string);
 
 // Set if the output displacement map is correction map (on reconstructed coordinate) or distortion map (on true coordinate)
 // By default set it as correction map so we could continue calculate the E field map
-bool CorrMapFlag = false; // Calculate correction vectors for true; Calculate distortion vectors for false
-bool DoCorr = false; // Calculate correction map for true; Skip calculation of correction map for false
+bool CorrMapFlag = false; // Calculate Reco (coord) correction vectors for true; Calculate True (coord) distortion vectors for false
+bool DoCorr = false; // Calculate Reco (coord) correction map for true; Skip calculation of True (coord) correction map for false
 bool DoEmap = false; // Calculate electric map for true; Skip calculation of electric map for false
 bool Merge2side = false;
 
@@ -180,7 +180,10 @@ int main(int argc, char** argv) {
     // Create the detector volume
     TPCVolumeHandler Detector(DetectorSize, DetectorOffset, DetectorResolution);
 
+    ThreeVector<unsigned long> EMapResolution = {26, 26, 101};
+
     std::stringstream ss_outfile;
+    std::stringstream ss_Eoutfile;
     float float_max = std::numeric_limits<float>::max();
     ThreeVector<float > Empty = {float_max,float_max,float_max};
 
@@ -191,6 +194,11 @@ int main(int argc, char** argv) {
     if (!CorrMapFlag) {
         ss_outfile << "TrueDistortion-N" << Nstep << "-S" << n_split << ".root";
     }
+
+    ss_Eoutfile << "Emap-N" << Nstep << "-S" << n_split <<".root";
+
+//    ss_outfile << "RecoCorr-Simu.root";
+//    ss_Eoutfile << "Emap-Simu.root";
   
     if(DoCorr){
         std::vector<std::vector<ThreeVector<float>>> DisplMapsHolder;
@@ -275,7 +283,7 @@ int main(int argc, char** argv) {
 
                     for(unsigned long track = 0; track < LaserSets2[set].GetTrackSet().size(); track++)
                     {
-                        std::cout<<"Laser2:::Set--"<<set<<"--Nsetp--"<<Nstep<<"--track--"<<track<<"--number--"<<LaserSets1[set].GetTrackSet()[track].GetNumberOfSamples()<<"||"<< std::difftime(std::time(NULL),timer) << " s"<<std::endl;
+                        std::cout<<"Laser2:::Set--"<<set<<"--Nsetp--"<<Nstep<<"--track--"<<track<<"--number--"<<LaserSets2[set].GetTrackSet()[track].GetNumberOfSamples()<<"||"<< std::difftime(std::time(NULL),timer) << " s"<<std::endl;
                         // reserve the space for the correction vector for each track
 //                        std::vector<ThreeVector<float>> CorrPart2(LaserSets2[set].GetTrackSet()[track].GetNumberOfSamples(),ThreeVector<float>(float_max,float_max,float_max));
                         std::vector<ThreeVector<float>> CorrPart2(LaserSets2[set].GetTrackSet()[track].GetNumberOfSamples(),ThreeVector<float>(0,0,0));
@@ -337,13 +345,13 @@ int main(int argc, char** argv) {
 
             // The correction map is based on reco space coord
             if(CorrMapFlag){
-                DisplMapsHolder.push_back(InterpolateMap(LaserSets1[set].GetTrackSet(), LaserRecoOrigin1[set].GetTrackSet(),MeshMap1, Detector));
-                DisplMapsHolder.push_back(InterpolateMap(LaserSets2[set].GetTrackSet(), LaserRecoOrigin2[set].GetTrackSet(),MeshMap2, Detector));
+                DisplMapsHolder.push_back(InterpolateMap(LaserSets1[set].GetTrackSet(), LaserRecoOrigin1[set].GetTrackSet(),MeshMap1, Detector, CorrMapFlag));
+                DisplMapsHolder.push_back(InterpolateMap(LaserSets2[set].GetTrackSet(), LaserRecoOrigin2[set].GetTrackSet(),MeshMap2, Detector, CorrMapFlag));
             }
             // The distortion map is based on true space coord
             else{
-                DisplMapsHolder.push_back(InterpolateMap(LaserSets1[set].GetTrackSet(), LaserSets1[set].GetTrackSet(), MeshMap1, Detector));
-                DisplMapsHolder.push_back(InterpolateMap(LaserSets2[set].GetTrackSet(), LaserSets2[set].GetTrackSet(), MeshMap2, Detector));
+                DisplMapsHolder.push_back(InterpolateMap(LaserSets1[set].GetTrackSet(), LaserSets1[set].GetTrackSet(), MeshMap1, Detector, CorrMapFlag));
+                DisplMapsHolder.push_back(InterpolateMap(LaserSets2[set].GetTrackSet(), LaserSets2[set].GetTrackSet(), MeshMap2, Detector, CorrMapFlag));
             }
 //            DisplMapsHolder[set] = InterpolateMap(LaserSets[set].GetTrackSet(), MeshMap1, Detector);
         }
@@ -373,11 +381,11 @@ int main(int argc, char** argv) {
 
         // Fill displacement map into TH3 histograms and write them to file
         std::cout << "Write to File ..." << std::endl;
-        WriteRootFile(DisplacementMap,Detector,ss_outfile.str());
+        WriteRootFile(DisplacementMap,Detector,ss_outfile.str(), CorrMapFlag);
     }
 
     // The Emap calculation works when the input is correction map
-    if(CorrMapFlag && DoEmap){
+    if(DoEmap){
         // The vector of Position and En must have the exactly the same index to make the interpolation (EInterpolateMap()) work
         std::vector<ThreeVector<float>> Position = Eposition(Detector, ss_outfile.str().c_str());
         std::vector<ThreeVector<float>> En = Elocal(Detector, ss_outfile.str().c_str());
@@ -388,11 +396,11 @@ int main(int argc, char** argv) {
 
         // Interpolate E Map (regularly spaced grid)
         std::cout << "Start interpolation the E field..." << std::endl;
-        std::vector<ThreeVector<float>> EMap = EInterpolateMap(En, Position, EMesh, Detector);
+        std::vector<ThreeVector<float>> EMap = EInterpolateMap(En, Position, EMesh, Detector, EMapResolution);
 
         // Fill displacement map into TH3 histograms and write them to file
         std::cout << "Write Emap to File ..." << std::endl;
-        WriteEmapRoot(EMap,Detector);
+        WriteEmapRoot(EMap,Detector,EMapResolution,ss_Eoutfile.str());
     }
 
 
@@ -400,55 +408,6 @@ int main(int argc, char** argv) {
 
 
 } // end main
-
-//void TwoSideIterationDisp( Laser LaserSets1 , Laser LaserSets2 , int Nstep, bool Corr){
-//
-//    float float_max = std::numeric_limits<float>::max();
-//    Laser LaserRecoOrigin1 = LaserSets1;
-//    Laser LaserRecoOrigin2 = LaserSets2;
-//
-//    for(int n=0; n<Nstep; n++){
-//
-//        LaserSets1.CalcDisplacement(LaserTrack::ClosestPointCorr, Nstep-n);
-//        Delaunay Mesh1 = TrackMesher(LaserSets1.GetTrackSet());
-//
-//        LaserSets2.CalcDisplacement(LaserTrack::ClosestPointCorr, Nstep-n);
-//        Delaunay Mesh2 = TrackMesher(LaserSets2.GetTrackSet());
-//
-//        for(unsigned long track = 0; track < LaserSets1.GetTrackSet().size(); track++)
-//        {
-//            // reserve the space for the correction vector for each track
-//            std::vector<ThreeVector<float>> CorrPart1(LaserSets1.GetTrackSet()[track].GetNumberOfSamples(),ThreeVector<float>(float_max,float_max,float_max));
-//
-//            // Loop over data points (samples) of each track
-//            for(unsigned long sample = 0; sample < LaserSets1.GetTrackSet()[track].GetNumberOfSamples(); sample++) {
-//                CorrPart1.push_back(InterpolateCGAL(LaserSets2.GetTrackSet(), Mesh2, LaserSets1.GetTrackSet()[track].GetSamplePosition(sample)));
-//            }
-//            LaserSets1.GetTrackSet()[track].AddCorrectionToRecoPart(CorrPart1);
-//        }
-//
-//        for(unsigned long track = 0; track < LaserSets2.GetTrackSet().size(); track++)
-//        {
-//            // reserve the space for the correction vector for each track
-//            std::vector<ThreeVector<float>> CorrPart2(LaserSets2.GetTrackSet()[track].GetNumberOfSamples(),ThreeVector<float>(float_max,float_max,float_max));
-//
-//            // Loop over data points (samples) of each track
-//            for(unsigned long sample = 0; sample < LaserSets2.GetTrackSet()[track].GetNumberOfSamples(); sample++) {
-//                CorrPart2.push_back(InterpolateCGAL(LaserSets1.GetTrackSet(), Mesh1, LaserSets2.GetTrackSet()[track].GetSamplePosition(sample)));
-//            }
-//            LaserSets2.GetTrackSet()[track].AddCorrectionToRecoPart(CorrPart2);
-//        }
-//
-//        // when it becomes the last step, we require the biased track points will be dragged to the true track lines
-//        if(n == (Nstep-1)){
-//            // the TRUE stands for opposite direction of the distortion direction (we calculate) and the correction direction (we will do here)
-//            LaserSets1.AddCorrectionToReco(true);
-//            LaserSets2.AddCorrectionToReco(true);
-//        }
-//    }
-//    LaserSets1.SetDisplacement(LaserRecoOrigin1,Corr);
-//    LaserSets2.SetDisplacement(LaserRecoOrigin2,Corr);
-//}
 
 
 Laser ReadRecoTracks(std::vector<std::string> InputFiles)
@@ -536,31 +495,41 @@ Laser ReadRecoTracks(std::vector<std::string> InputFiles)
 } // end ReadRecoTracks
 
 
-void WriteRootFile(std::vector<ThreeVector<float>>& InterpolationData, TPCVolumeHandler& TPCVolume, std::string OutputFilename)
+void WriteRootFile(std::vector<ThreeVector<float>>& InterpolationData, TPCVolumeHandler& TPCVolume, std::string OutputFilename, bool CorrMapFlag = false)
 { 
     // Store TPC properties which are important for the TH3 generation
+
     ThreeVector<unsigned long> Resolution = TPCVolume.GetDetectorResolution();
     ThreeVector<float> MinimumCoord = TPCVolume.GetMapMinimum();
     ThreeVector<float> MaximumCoord = TPCVolume.GetMapMaximum();
+    ThreeVector<float> Unit = {TPCVolume.GetDetectorSize()[0] / (Resolution[0]-1), TPCVolume.GetDetectorSize()[1] / (Resolution[1]-1), TPCVolume.GetDetectorSize()[2] / (Resolution[2]-1)};
 
-    std::cout<<"MinX: "<<MinimumCoord[0]<<"; MinY: "<<MinimumCoord[1]<<"; MinZ: "<<MinimumCoord[2]<<std::endl;
-    std::cout<<"MaxX: "<<MaximumCoord[0]<<"; MaxY: "<<MaximumCoord[1]<<"; MaxZ: "<<MaximumCoord[2]<<std::endl;
-  
+
+//    std::cout<<"MinX: "<<MinimumCoord[0]<<"; MinY: "<<MinimumCoord[1]<<"; MinZ: "<<MinimumCoord[2]<<std::endl;
+//    std::cout<<"MaxX: "<<MaximumCoord[0]<<"; MaxY: "<<MaximumCoord[1]<<"; MaxZ: "<<MaximumCoord[2]<<std::endl;
+
+    // For Reco coord based
+    unsigned Extension = 0;
+    if(CorrMapFlag){
+        Extension = 2; //Must be consistent with the setup as "InterpolationData"
+    }
     // Initialize all TH3F
     std::vector<TH3F> RecoDisplacement;
-    RecoDisplacement.push_back(TH3F("Reco_Displacement_X","Reco Displacement X",Resolution[0],MinimumCoord[0],MaximumCoord[0],Resolution[1],MinimumCoord[1],MaximumCoord[1],Resolution[2],MinimumCoord[2],MaximumCoord[2]));
-    RecoDisplacement.push_back(TH3F("Reco_Displacement_Y","Reco Displacement Y",Resolution[0],MinimumCoord[0],MaximumCoord[0],Resolution[1],MinimumCoord[1],MaximumCoord[1],Resolution[2],MinimumCoord[2],MaximumCoord[2]));
-    RecoDisplacement.push_back(TH3F("Reco_Displacement_Z","Reco Displacement Z",Resolution[0],MinimumCoord[0],MaximumCoord[0],Resolution[1],MinimumCoord[1],MaximumCoord[1],Resolution[2],MinimumCoord[2],MaximumCoord[2]));
-  
+    //2 in "2*Extension" stands for extension of both sides
+    RecoDisplacement.push_back(TH3F("Reco_Displacement_X","Reco Displacement X",Resolution[0]+2*Extension,MinimumCoord[0]-Unit[0]*(Extension+0.5),MaximumCoord[0]+Unit[0]*(Extension+0.5),Resolution[1]+2*Extension,MinimumCoord[1]-Unit[1]*(Extension+0.5),MaximumCoord[1]+Unit[1]*(Extension+0.5),Resolution[2]+2*Extension,MinimumCoord[2]-Unit[2]*(Extension+0.5),MaximumCoord[2]+Unit[2]*(Extension+0.5)));
+    RecoDisplacement.push_back(TH3F("Reco_Displacement_Y","Reco Displacement Y",Resolution[0]+2*Extension,MinimumCoord[0]-Unit[0]*(Extension+0.5),MaximumCoord[0]+Unit[0]*(Extension+0.5),Resolution[1]+2*Extension,MinimumCoord[1]-Unit[1]*(Extension+0.5),MaximumCoord[1]+Unit[1]*(Extension+0.5),Resolution[2]+2*Extension,MinimumCoord[2]-Unit[2]*(Extension+0.5),MaximumCoord[2]+Unit[2]*(Extension+0.5)));
+    RecoDisplacement.push_back(TH3F("Reco_Displacement_Z","Reco Displacement Z",Resolution[0]+2*Extension,MinimumCoord[0]-Unit[0]*(Extension+0.5),MaximumCoord[0]+Unit[0]*(Extension+0.5),Resolution[1]+2*Extension,MinimumCoord[1]-Unit[1]*(Extension+0.5),MaximumCoord[1]+Unit[1]*(Extension+0.5),Resolution[2]+2*Extension,MinimumCoord[2]-Unit[2]*(Extension+0.5),MaximumCoord[2]+Unit[2]*(Extension+0.5)));
+
+
 
     // Loop over all xbins
-    for(unsigned xbin = 0; xbin < TPCVolume.GetDetectorResolution()[0]; xbin++)
+    for(unsigned xbin = 0; xbin < Resolution[0]+2*Extension; xbin++)
     {
         // Loop over all ybins
-        for(unsigned ybin = 0; ybin < TPCVolume.GetDetectorResolution()[1]; ybin++) 
+        for(unsigned ybin = 0; ybin < Resolution[1]+2*Extension; ybin++)
         {
             // Loop over all zbins
-            for(unsigned zbin = 0; zbin < TPCVolume.GetDetectorResolution()[2]; zbin++)
+            for(unsigned zbin = 0; zbin < Resolution[2]+2*Extension; zbin++)
             {
                 // Loop over all coordinates
 
@@ -568,7 +537,7 @@ void WriteRootFile(std::vector<ThreeVector<float>>& InterpolationData, TPCVolume
                 {
                     // Fill interpolated grid points into histograms
                     // bin=0 is underflow, bin = nbin+1 is overflow
-                    RecoDisplacement[coord].SetBinContent(xbin+1,ybin+1,zbin+1, InterpolationData[zbin+( TPCVolume.GetDetectorResolution()[2]*(ybin+TPCVolume.GetDetectorResolution()[1]*xbin) )][coord]);
+                    RecoDisplacement[coord].SetBinContent(xbin+1,ybin+1,zbin+1, InterpolationData[zbin+( Resolution[2]*(ybin+Resolution[1]*xbin) )][coord]);
                     // It's equivalent to the following expression
                     // Remember, the range of the hist bin is (1, nbins), while when we fill the vector, it starts from 0. (0,nbins-1)
                     // RecoDisplacement[coord].SetBinContent(xbin+1,ybin+1,zbin+1, InterpolationData[zbin+ybin*TPCVolume.GetDetectorResolution()[2]+xbin*TPCVolume.GetDetectorResolution()[1]*TPCVolume.GetDetectorResolution()[2]][coord]);
@@ -634,7 +603,8 @@ std::vector<ThreeVector<float>> Elocal(TPCVolumeHandler& TPCVolume, const char *
     TH3F *Dy = (TH3F*) InFile->Get("Reco_Displacement_Y");
     TH3F *Dz = (TH3F*) InFile->Get("Reco_Displacement_Z");
 
-    float DetectorReso[3]={TPCVolume.GetDetectorSize()[0] /TPCVolume.GetDetectorResolution()[0],TPCVolume.GetDetectorSize()[1]/TPCVolume.GetDetectorResolution()[1],TPCVolume.GetDetectorSize()[2]/TPCVolume.GetDetectorResolution()[2]};
+    ThreeVector<unsigned long> Resolution = TPCVolume.GetDetectorResolution();
+    ThreeVector<float> DetectorReso = {TPCVolume.GetDetectorSize()[0] / (Resolution[0]-1),TPCVolume.GetDetectorSize()[1]/(Resolution[1]-1),TPCVolume.GetDetectorSize()[2]/(Resolution[2]-1)};
     float Delta_x = DetectorReso[0]; //cm
     float Ex = 273; // kV/cm
 
@@ -660,7 +630,7 @@ std::vector<ThreeVector<float>> Elocal(TPCVolumeHandler& TPCVolume, const char *
                 ThreeVector<float> True_next = RecoGrid_next + Dxyz_next;
 
                 ThreeVector<float> Rn = True_next - True;
-                En[xbin+ybin*(TPCVolume.GetDetectorResolution()[0]-1)+zbin*(TPCVolume.GetDetectorResolution()[0]-1)*TPCVolume.GetDetectorResolution()[1]] = Ex / Delta_x * Rn;
+                En[xbin+ybin*(Resolution[0]-1)+zbin*(Resolution[0]-1)*Resolution[1]] = Ex / Delta_x * Rn;
             }
         }
     }
@@ -670,15 +640,15 @@ std::vector<ThreeVector<float>> Elocal(TPCVolumeHandler& TPCVolume, const char *
 std::vector<ThreeVector<float>> Eposition(TPCVolumeHandler& TPCVolume, const char * root_name)
 {
     ThreeVector<unsigned long> Resolution = TPCVolume.GetDetectorResolution();
+    ThreeVector<float> DetectorReso = {TPCVolume.GetDetectorSize()[0] / (Resolution[0]-1),TPCVolume.GetDetectorSize()[1]/(Resolution[1]-1),TPCVolume.GetDetectorSize()[2]/(Resolution[2]-1)};
+
     std::cout<<"name: "<<root_name<<std::endl;
-//    TFile *InFile = new TFile("RecoCorrection.root","READ");
     TFile *InFile = new TFile(root_name,"READ");
 
     TH3F *Dx = (TH3F*) InFile->Get("Reco_Displacement_X");
     TH3F *Dy = (TH3F*) InFile->Get("Reco_Displacement_Y");
     TH3F *Dz = (TH3F*) InFile->Get("Reco_Displacement_Z");
 
-    float DetectorReso[3]={TPCVolume.GetDetectorSize()[0] /Resolution[0],TPCVolume.GetDetectorSize()[1]/Resolution[1],TPCVolume.GetDetectorSize()[2]/Resolution[2]};
 
     std::vector<ThreeVector<float>> Position(Resolution[2]*Resolution[1]*(Resolution[0]-1));
 
@@ -708,18 +678,20 @@ std::vector<ThreeVector<float>> Eposition(TPCVolumeHandler& TPCVolume, const cha
 }
 
 // Write Emap into TH3 and store in root file
-void WriteEmapRoot(std::vector<ThreeVector<float>>& Efield, TPCVolumeHandler& TPCVolume)
+void WriteEmapRoot(std::vector<ThreeVector<float>>& Efield, TPCVolumeHandler& TPCVolume, ThreeVector<unsigned long> Resolution, std::string OutputFilename)
 {
     // Store TPC properties which are important for the TH3 generation
-    ThreeVector<unsigned long> Resolution = TPCVolume.GetDetectorResolution();
+//    ThreeVector<unsigned long> Resolution = {21,21,81};
+//    ThreeVector<unsigned long> Resolution = TPCVolume.GetDetectorResolution();
     ThreeVector<float> MinimumCoord = TPCVolume.GetMapMinimum();
     ThreeVector<float> MaximumCoord = TPCVolume.GetMapMaximum();
+    ThreeVector<float> Unit = {TPCVolume.GetDetectorSize()[0] / (Resolution[0]-1), TPCVolume.GetDetectorSize()[1] / (Resolution[1]-1), TPCVolume.GetDetectorSize()[2] / (Resolution[2]-1)};
 
     // Initialize all TH3F
     std::vector<TH3F> Emap;
-    Emap.push_back(TH3F("Emap_X","E field map X",Resolution[0],MinimumCoord[0],MaximumCoord[0],Resolution[1],MinimumCoord[1],MaximumCoord[1],Resolution[2],MinimumCoord[2],MaximumCoord[2]));
-    Emap.push_back(TH3F("Emap_Y","E field map Y",Resolution[0],MinimumCoord[0],MaximumCoord[0],Resolution[1],MinimumCoord[1],MaximumCoord[1],Resolution[2],MinimumCoord[2],MaximumCoord[2]));
-    Emap.push_back(TH3F("Emap_Z","E field map Z",Resolution[0],MinimumCoord[0],MaximumCoord[0],Resolution[1],MinimumCoord[1],MaximumCoord[1],Resolution[2],MinimumCoord[2],MaximumCoord[2]));
+    Emap.push_back(TH3F("Emap_X","E field map X",Resolution[0],MinimumCoord[0]-Unit[0]*0.5,MaximumCoord[0]+Unit[0]*0.5,Resolution[1],MinimumCoord[1]-Unit[1]*0.5,MaximumCoord[1]+Unit[1]*0.5,Resolution[2],MinimumCoord[2]-Unit[2]*0.5,MaximumCoord[2]+Unit[2]*0.5));
+    Emap.push_back(TH3F("Emap_Y","E field map Y",Resolution[0],MinimumCoord[0]-Unit[0]*0.5,MaximumCoord[0]+Unit[0]*0.5,Resolution[1],MinimumCoord[1]-Unit[1]*0.5,MaximumCoord[1]+Unit[1]*0.5,Resolution[2],MinimumCoord[2]-Unit[2]*0.5,MaximumCoord[2]+Unit[2]*0.5));
+    Emap.push_back(TH3F("Emap_Z","E field map Z",Resolution[0],MinimumCoord[0]-Unit[0]*0.5,MaximumCoord[0]+Unit[0]*0.5,Resolution[1],MinimumCoord[1]-Unit[1]*0.5,MaximumCoord[1]+Unit[1]*0.5,Resolution[2],MinimumCoord[2]-Unit[2]*0.5,MaximumCoord[2]+Unit[2]*0.5));
 
     // the loop should be consistent to the one in the EInterpolateMap()
     for(unsigned xbin = 0; xbin < Resolution[0]; xbin++)
@@ -733,13 +705,15 @@ void WriteEmapRoot(std::vector<ThreeVector<float>>& Efield, TPCVolumeHandler& TP
                 {
                     // Fill interpolated grid points into histograms. bin=0 is underflow, bin = nbin+1 is overflow
                     Emap[coord].SetBinContent(xbin+1,ybin+1,zbin+1, Efield[zbin+ybin*Resolution[2]+xbin*Resolution[2]*Resolution[1]][coord]);
+
                 } // end coordinate loop
+//                std::cout<<"xbin: "<<xbin<<"; ybin: "<<ybin<<"; zbin: "<<zbin<<"---Ex: "<<Efield[zbin+ybin*Resolution[2]+xbin*Resolution[2]*Resolution[1]][0]<<"; Ey: "<<Efield[zbin+ybin*Resolution[2]+xbin*Resolution[2]*Resolution[1]][1]<<"; Ez: "<< Efield[zbin+ybin*Resolution[2]+xbin*Resolution[2]*Resolution[1]][2]<<std::endl;
             } // end zbin loop
         } // end ybin loop
     } // end zbin loop
 
     // Open and recreate output file
-    TFile OutputFile("Emap.root", "recreate");
+    TFile OutputFile(OutputFilename.c_str(), "recreate");
 
     // Loop over space coordinates
     for(unsigned coord = 0; coord < Emap.size(); coord++)
