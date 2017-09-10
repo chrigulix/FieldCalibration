@@ -180,25 +180,25 @@ int main(int argc, char** argv) {
     // Create the detector volume
     TPCVolumeHandler Detector(DetectorSize, DetectorOffset, DetectorResolution);
 
-    ThreeVector<unsigned long> EMapResolution = {26, 26, 101};
+    ThreeVector<unsigned long> EMapResolution = {21, 21, 81};
 
     std::stringstream ss_outfile;
     std::stringstream ss_Eoutfile;
     float float_max = std::numeric_limits<float>::max();
     ThreeVector<float > Empty = {float_max,float_max,float_max};
 
-    // Set the name for Dmap
-    if (CorrMapFlag) {
-        ss_outfile << "RecoCorrection-N" << Nstep << "-S" << n_split << ".root";
-    }
-    if (!CorrMapFlag) {
-        ss_outfile << "TrueDistortion-N" << Nstep << "-S" << n_split << ".root";
-    }
+//    // Set the name for Dmap
+//    if (CorrMapFlag) {
+//        ss_outfile << "RecoCorrection-N" << Nstep << "-S" << n_split << ".root";
+//    }
+//    if (!CorrMapFlag) {
+//        ss_outfile << "TrueDistortion-N" << Nstep << "-S" << n_split << ".root";
+//    }
+//
+//    ss_Eoutfile << "Emap-N" << Nstep << "-S" << n_split <<".root";
 
-    ss_Eoutfile << "Emap-N" << Nstep << "-S" << n_split <<".root";
-
-//    ss_outfile << "RecoCorr-Simu.root";
-//    ss_Eoutfile << "Emap-Simu.root";
+    ss_outfile << "RecoCorr-Simu.root";
+    ss_Eoutfile << "Emap-Simu.root";
   
     if(DoCorr){
         std::vector<std::vector<ThreeVector<float>>> DisplMapsHolder;
@@ -686,6 +686,7 @@ void WriteEmapRoot(std::vector<ThreeVector<float>>& Efield, TPCVolumeHandler& TP
     ThreeVector<float> MinimumCoord = TPCVolume.GetMapMinimum();
     ThreeVector<float> MaximumCoord = TPCVolume.GetMapMaximum();
     ThreeVector<float> Unit = {TPCVolume.GetDetectorSize()[0] / (Resolution[0]-1), TPCVolume.GetDetectorSize()[1] / (Resolution[1]-1), TPCVolume.GetDetectorSize()[2] / (Resolution[2]-1)};
+    ThreeVector<float> E0 = {273.0, 0.0, 0.0};
 
     // Initialize all TH3F
     std::vector<TH3F> Emap;
@@ -704,8 +705,12 @@ void WriteEmapRoot(std::vector<ThreeVector<float>>& Efield, TPCVolumeHandler& TP
                 for(unsigned coord = 0; coord < 3; coord++)
                 {
                     // Fill interpolated grid points into histograms. bin=0 is underflow, bin = nbin+1 is overflow
-                    Emap[coord].SetBinContent(xbin+1,ybin+1,zbin+1, Efield[zbin+ybin*Resolution[2]+xbin*Resolution[2]*Resolution[1]][coord]);
-
+                    if(xbin == 0){
+                        Emap[coord].SetBinContent(xbin+1,ybin+1,zbin+1, E0[coord]);
+                    }
+                    else{
+                        Emap[coord].SetBinContent(xbin+1,ybin+1,zbin+1, Efield[zbin+ybin*Resolution[2]+xbin*Resolution[2]*Resolution[1]][coord]);
+                    }
                 } // end coordinate loop
 //                std::cout<<"xbin: "<<xbin<<"; ybin: "<<ybin<<"; zbin: "<<zbin<<"---Ex: "<<Efield[zbin+ybin*Resolution[2]+xbin*Resolution[2]*Resolution[1]][0]<<"; Ey: "<<Efield[zbin+ybin*Resolution[2]+xbin*Resolution[2]*Resolution[1]][1]<<"; Ez: "<< Efield[zbin+ybin*Resolution[2]+xbin*Resolution[2]*Resolution[1]][2]<<std::endl;
             } // end zbin loop
