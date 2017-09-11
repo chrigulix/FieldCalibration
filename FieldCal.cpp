@@ -44,6 +44,11 @@
 #include "TTreeReader.h"
 #include "TTreeReaderValue.h"
 
+#ifdef _OPENMP
+#include "omp.h"
+
+#endif
+
 // Own Files
 #include "include/LaserTrack.hpp"
 #include "include/ThreeVector.hpp"
@@ -80,20 +85,26 @@ int main(int argc, char** argv) {
 
     // specify the amount of downsampling
     unsigned int n_split = 1;
+    unsigned int n_threads = 1;
 
     // If there are to few input arguments, abort!
     if(argc < 2)
     {
         std::cerr << "ERROR: Too few arguments, use ./LaserCal <options> <input file names>" << std::endl;
         std::cerr << "options:  -d INTEGER  : Number of downsampling of the input dataset, default 1." << std::endl;
+        std::cerr << "          -j INTEGER  : Number of threads to use, default 1" << std::endl;
+
         return -1;
     }
     // Lets handle all options
     int c;
-    while((c = getopt(argc, argv, ":d:CDE")) != -1){
+    while((c = getopt(argc, argv, ":djCDE:")) != -1){
         switch(c){
             case 'd':
                 n_split = atoi(optarg);
+                break;
+            case 'j':
+                n_threads = atoi(optarg);
                 break;
             case 'C':
                 CorrMapFlag = true;
@@ -104,9 +115,11 @@ int main(int argc, char** argv) {
             case 'E':
                 DoEmap = true;
                 break;
-            // put in your case here. also add it to the while loop as an option or as required argument
+                // put in your case here. also add it to the while loop as an option or as required argument
         }
     }
+
+    omp_set_num_threads(n_threads);
 
     // Now handle input files
     std::vector<std::string> InputFiles;
@@ -120,50 +133,6 @@ int main(int argc, char** argv) {
         }
         InputFiles.push_back(filename);
     }
-
-
-//    // Now handle input files
-//    std::vector<std::string> InputFiles1;
-//    std::vector<std::string> InputFiles2;
-//    unsigned int n_files = 0;
-//    for (int i = optind; i < argc; i++) {
-//        std::string filename (argv[i]);
-//        // check if file exists
-//        std::ifstream f(filename.c_str());
-//        if (!f.good()) {
-//            throw std::runtime_error(std::string("file does not exist: ") + filename);
-//        }
-//
-//        TChain* tree = new TChain("lasers");
-//        tree->Add(filename.c_str());
-//        int side;
-//        tree->SetBranchAddress("side",&side);
-//        TCanvas *c1;
-//        tree->Draw("side>>hside","");
-//        TH1F *hside = (TH1F*)gDirectory->Get("hside");
-//        int LCS = hside->GetMean();
-//        c1->Close();
-//        delete tree;
-//
-//        if(LCS==1){
-//            InputFiles1.push_back(filename);
-//        }
-//        else if(LCS==2){
-//            InputFiles2.push_back(filename);
-//        }
-//        else{
-//            std::cerr << "The laser system is not labeled correctly." << std::endl;
-//        }
-//    }
-//
-//    if(Merge2side){
-//        InputFiles1.insert(InputFiles1.end(), InputFiles2.begin(), InputFiles2.end());
-//    }
-//    else{
-//        if(InputFiles1.empty() || InputFiles2.empty()){
-//            std::cerr << "Please provide the laser data from 2 sides." << std::endl;
-//        }
-//    }
 
     // Choose detector dimensions, coordinate system offset and resolutions
     ThreeVector<float> DetectorSize = {256.04, 232.5, 1036.8};
@@ -183,7 +152,7 @@ int main(int argc, char** argv) {
     if (!CorrMapFlag) {
         ss_outfile << "TrueDistortion-" << n_split << ".root";
     }
-  
+
     if(DoCorr){
         std::vector<std::vector<ThreeVector<float>>> DisplMapsHolder;
         DisplMapsHolder.resize(n_split);
@@ -194,22 +163,20 @@ int main(int argc, char** argv) {
         // Read data and store it to a Laser object
         std::cout << "Reading data..." << std::endl;
         Laser FullTracks = ReadRecoTracks(InputFiles);
-//        Laser FullTracks1 = ReadRecoTracks(InputFiles1);
-//        Laser FullTracks2 = ReadRecoTracks(InputFiles2);
-
+      
         // Here we split the laser set in multiple laser sets...
         std::vector<Laser> LaserSets = SplitTrackSet(FullTracks, n_split);
-//        std::vector<Laser> LaserSets1 = SplitTrackSet(FullTracks1, n_split);
-//        std::vector<Laser> LaserSets2 = SplitTrackSet(FullTracks2, n_split);
       
         // Now we loop over each individual set and compute the displacement vectors.
         // TODO: This could be parallelized
+
+#pragma omp parallel for
         for (unsigned int set = 0; set < n_split; set++) {
-            std::cout << "Processing subset " << set << " ... " << std::endl;
+            std::cout << "Processing subset " << set << "/" << n_split << "... " << std::endl;
 
             // Calculate track displacement
-            std::cout << "Find track displacements... " << std::endl;
-          
+            std::cout << " [" << set << "] Find track displacements... " << std::endl;
+
             if (CorrMapFlag) {
                 // Suggestion: Choose ClosestPoint Algorithm
                 LaserSets[set].CalcDisplacement(LaserTrack::ClosestPointCorr);
@@ -218,7 +185,8 @@ int main(int argc, char** argv) {
             }
 
             if (!CorrMapFlag) {
-                // Suggestion: Choose ClosestPoint Algorithm
+                // Choose displacement algorithm (available so far: TrackDerivative, ClosestPoint, or LinearStretch)
+                // Suggestion: stay with ClosestPoint Algorithm
                 LaserSets[set].CalcDisplacement(LaserTrack::ClosestPointDist);
                 // Now the laser tracks are based on the reconstructed coordinate.
                 // For DISTORTION MAP as output, set the mesh on the true space points
@@ -226,11 +194,11 @@ int main(int argc, char** argv) {
             }
 
             // Create delaunay mesh
-            std::cout << "Generate mesh..." << std::endl;
+            std::cout << " [" << set << "] Generate mesh..." << std::endl;
             Delaunay Mesh = TrackMesher(LaserSets[set].GetTrackSet());
 
             // Interpolate Displacement Map (regularly spaced grid)
-            std::cout << "Start interpolation..." << std::endl;
+            std::cout << " [" << set << "] Start interpolation..." << std::endl;
             DisplMapsHolder[set] = InterpolateMap(LaserSets[set].GetTrackSet(), Mesh, Detector);
         }
         // Now we go on to create an unified displacement map
@@ -287,6 +255,34 @@ int main(int argc, char** argv) {
 
 } // end main
 
+// To check if the input root files contain the laser data from two laser system (two side)
+//bool Twolasersys(int argc, char** argv)
+//{
+//    if(argc != 3){
+//        std::cerr << "ERROR: Not right arguments. Please use ./FieldCal <name_LCS1.root> <name_LCS2.root>" << std::endl;
+//        return false; //0
+//    }
+//    if(argc == 3){
+//        int LCS1,LCS2;
+//        TChain* tree1 = new TChain("laser1");
+//        tree1->Add(argv[1]);
+//        tree1->SetBranchAddress("LCS1",&LCS1);
+//        TH1F* h1;
+//        tree1->Draw("LCS1>>h1","");
+//        LCS1 = h1->GetMean();
+//
+//        TChain* tree2 = new TChain("laser2");
+//        tree2->Add(argv[2]);
+//        tree2->SetBranchAddress("LCS2",&LCS2);
+//        TH1F* h2;
+//        tree2->Draw("LCS1>>h2","");
+//        LCS2 = h2->GetMean();
+//
+//        // A rough check here. Risk that one single input root file has mixed data from two laser system
+//        if((LCS1-1.5)*(LCS2-1.5)<0){ return true; }
+//        else{return false;}
+//    }
+//}
 
 Laser ReadRecoTracks(std::vector<std::string> InputFiles)
 {
@@ -296,8 +292,10 @@ Laser ReadRecoTracks(std::vector<std::string> InputFiles)
     // Initialize read variables, the pointers for more complex data structures 
     // are very important for Root. Rene Brun in hell (do you see what I did there?)
     int EventNumber;
+    
     std::vector<TVector3> TrackSamples;
     std::vector<TVector3>* pTrackSamples = &TrackSamples;
+    
     TVector3 EntryPoint;
     TVector3* pEntryPoint = &EntryPoint;
     TVector3 ExitPoint;
@@ -503,7 +501,7 @@ std::vector<ThreeVector<float>> Elocal(TPCVolumeHandler& TPCVolume, const char *
 std::vector<ThreeVector<float>> Eposition(TPCVolumeHandler& TPCVolume, const char * root_name)
 {
     ThreeVector<unsigned long> Resolution = TPCVolume.GetDetectorResolution();
-    std::cout<<"name: "<<root_name<<std::endl;
+    std::cout << "name: " << root_name << std::endl;
 //    TFile *InFile = new TFile("RecoCorrection.root","READ");
     TFile *InFile = new TFile(root_name,"READ");
 
