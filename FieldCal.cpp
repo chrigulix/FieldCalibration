@@ -44,6 +44,11 @@
 #include "TTreeReader.h"
 #include "TTreeReaderValue.h"
 
+#ifdef _OPENMP
+#include "omp.h"
+
+#endif
+
 // Own Files
 #include "include/LaserTrack.hpp"
 #include "include/ThreeVector.hpp"
@@ -79,24 +84,32 @@ int main(int argc, char** argv) {
 
     // specify the amount of downsampling
     unsigned int n_split = 1;
+    unsigned int n_threads = 1;
 
     // If there are to few input arguments abord
     if(argc < 2)
     {
         std::cerr << "ERROR: Too few arguments, use ./LaserCal <options> <input file names>" << std::endl;
         std::cerr << "options:  -d INTEGER  : Number of downsampling of the input dataset, default 1." << std::endl;
+        std::cerr << "          -j INTEGER  : Number of threads to use, default 1" << std::endl;
+
         return -1;
     }
     // Lets handle all options
     int c;
-    while((c = getopt(argc, argv, ":d:")) != -1){
+    while((c = getopt(argc, argv, ":dj:")) != -1){
         switch(c){
             case 'd':
                 n_split = atoi(optarg);
                 break;
-            // put in your case here. also add it to the while loop as an option or as required argument
+            case 'j':
+                n_threads = atoi(optarg);
+                break;
+                // put in your case here. also add it to the while loop as an option or as required argument
         }
     }
+
+    omp_set_num_threads(n_threads);
 
     // Now handle input files
     std::vector<std::string> InputFiles;
@@ -124,7 +137,12 @@ int main(int argc, char** argv) {
         DisplMapsHolder.resize(n_split);
 
         std::stringstream ss_outfile;
-        ss_outfile << "RecoDispl-" << n_split << ".root";
+        if (CorrMapFlag) {
+            ss_outfile << "RecoCorrection-" << n_split << ".root";
+        }
+        else {
+            ss_outfile << "TrueDistortion-" << n_split << ".root";
+        }
 
         // Read data and store it to a Laser object
         std::cout << "Reading data..." << std::endl;
@@ -135,14 +153,15 @@ int main(int argc, char** argv) {
       
         // Now we loop over each individual set and compute the displacement vectors.
         // TODO: This could be parallelized
+
+#pragma omp parallel for
         for (unsigned int set = 0; set < n_split; set++) {
-            std::cout << "Processing subset " << set << " ... " << std::endl;
+            std::cout << "Processing subset " << set << "/" << n_split << "... " << std::endl;
 
             // Calculate track displacement
-            std::cout << "Find track displacements... " << std::endl;
-          
+            std::cout << " [" << set << "] Find track displacements... " << std::endl;
             if (CorrMapFlag) {
-                ss_outfile << "RecoCorrection-" << n_split << ".root";
+                // ss_outfile << "RecoCorrection-" << n_split << ".root";
                 // Choose displacement algorithm (available so far: TrackDerivative, ClosestPoint, or LinearStretch)
                 // Suggestion: stay with ClosestPoint Algorithm
                 LaserSets[set].CalcDisplacement(LaserTrack::ClosestPointCorr);
@@ -153,7 +172,6 @@ int main(int argc, char** argv) {
             // Caculating now the displacement map of distortion based on the true coordinates
             // Remember to turn the "CorrMapFlag" off
             if (!CorrMapFlag) {
-                ss_outfile << "TrueDistortion-" << n_split << ".root";
                 // Choose displacement algorithm (available so far: TrackDerivative, ClosestPoint, or LinearStretch)
                 // Suggestion: stay with ClosestPoint Algorithm
                 LaserSets[set].CalcDisplacement(LaserTrack::ClosestPointDist);
@@ -164,11 +182,11 @@ int main(int argc, char** argv) {
             }
 
             // Create delaunay mesh
-            std::cout << "Generate mesh..." << std::endl;
+            std::cout << " [" << set << "] Generate mesh..." << std::endl;
             Delaunay Mesh = TrackMesher(LaserSets[set].GetTrackSet());
 
             // Interpolate Displacement Map (regularly spaced grid)
-            std::cout << "Start interpolation..." << std::endl;
+            std::cout << " [" << set << "] Start interpolation..." << std::endl;
             DisplMapsHolder[set] = InterpolateMap(LaserSets[set].GetTrackSet(), Mesh, Detector);
         }
         // Now we go on to create an unified displacement map
@@ -193,15 +211,15 @@ int main(int argc, char** argv) {
 
         // Create mesh for Emap
         std::cout << "Generate mesh for E field..." << std::endl;
-        xDelaunay EMesh = Mesher(Position, Detector);
+        //xDelaunay EMesh = Mesher(Position, Detector);
 
         // Interpolate E Map (regularly spaced grid)
         std::cout << "Start interpolation the E field..." << std::endl;
-        std::vector<ThreeVector<float>> EMap = EInterpolateMap(En, Position, EMesh, Detector);
+        //std::vector<ThreeVector<float>> EMap = EInterpolateMap(En, Position, EMesh, Detector);
 
         // Fill displacement map into TH3 histograms and write them to file
         std::cout << "Write Emap to File ..." << std::endl;
-        WriteEmapRoot(EMap,Detector);
+        //WriteEmapRoot(EMap,Detector);
     }
 
 
@@ -362,7 +380,7 @@ void WriteRootFile(std::vector<ThreeVector<float>>& InterpolationData, TPCVolume
     
     // Open and recreate output file
 
-    TFile OutputFile(OutputFilename.c_str(), "recreate");
+    TFile OutputFile(OutputFilename.c_str(), "RECREATE");
     
     // Loop over space coordinates
     for(unsigned coord = 0; coord < RecoDisplacement.size(); coord++)
