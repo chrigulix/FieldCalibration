@@ -41,8 +41,8 @@ Delaunay TrackMesher(const std::vector<LaserTrack>&);
 Point VectorToPoint(ThreeVector<float>&);
 ThreeVector<float> PointToVector(Point&);
 
-ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet, const Delaunay& Mesh, ThreeVector<float> Location);
-std::vector<ThreeVector<float>> InterpolateMap(const std::vector<LaserTrack>& LaserTrackSet, const Delaunay& Mesh, const TPCVolumeHandler& TPC);
+ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet, const std::vector<LaserTrack>& LaserMeshSet, const Delaunay& Mesh, ThreeVector<float> Location, bool Map = false);
+std::vector<ThreeVector<float>> InterpolateMap(const std::vector<LaserTrack>& LaserTrackSet, const std::vector<LaserTrack>& LaserMeshSet, const Delaunay& Mesh, const TPCVolumeHandler& TPC, bool CorrMapFlag = false);
 void InterpolateTrack(LaserTrack& ,const std::vector<LaserTrack>& , const Delaunay&);
 
 /////////////////E map session
@@ -53,7 +53,7 @@ typedef xDelaunay::Point xPoint;
 xDelaunay Mesher(std::vector<ThreeVector<float>>& Position, TPCVolumeHandler& TPC);
 xPoint xVectorToPoint(ThreeVector<float>&);
 ThreeVector<float> EInterpolateCGAL(std::vector<ThreeVector<float>>& En, std::vector<ThreeVector<float>>& Position, const xDelaunay& Mesh, ThreeVector<float> Location, const TPCVolumeHandler& TPC);
-std::vector<ThreeVector<float>> EInterpolateMap(std::vector<ThreeVector<float>>& En, std::vector<ThreeVector<float>>& Position, const xDelaunay& Mesh, const TPCVolumeHandler& TPC);
+std::vector<ThreeVector<float>> EInterpolateMap(std::vector<ThreeVector<float>>& En, std::vector<ThreeVector<float>>& Position, const xDelaunay& Mesh, const TPCVolumeHandler& TPC, ThreeVector<unsigned long> EReso);
 /////////////////E map session
 
 #endif
