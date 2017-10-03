@@ -354,8 +354,8 @@ ThreeVector<float> EInterpolateCGAL(std::vector<ThreeVector<float>>& En, std::ve
         // Set E field to zero and end function immediately!
 //        std::cout<<"There is negative barycentric coordinate at this E grid point! "<<std::endl;
 //        InterpolatedEfield = {273.0,0.0,0.0};
-        std::cout << "x: " << Location[0]<<"; y: "<<Location[1]<<"; z: "<<Location[2]<<std::endl;
-        std::cout<<"A: "<< BaryCoord[0]<<"; B: "<< BaryCoord[1]<<"; C: "<< BaryCoord[2]<<"; D: "<< BaryCoord[3]<<std::endl;
+//        std::cout << "x: " << Location[0]<<"; y: "<<Location[1]<<"; z: "<<Location[2]<<std::endl;
+//        std::cout<<"A: "<< BaryCoord[0]<<"; B: "<< BaryCoord[1]<<"; C: "<< BaryCoord[2]<<"; D: "<< BaryCoord[3]<<std::endl;
 //        InterpolatedEfield = {-99,-99,-99};
 //            std::cout<<"loc: "<<loc<<"; li: "<<li<<"; lj: "<<lj<<std::endl;
         InterpolatedEfield = {float_max,float_max,float_max};
@@ -456,7 +456,7 @@ std::vector<ThreeVector<float>> EInterpolateMap(std::vector<ThreeVector<float>>&
                 // Calculate Grid point y-coordinate
                 Location[2] = TPC.GetDetectorOffset()[2] + TPC.GetDetectorSize()[2]/static_cast<float>(EReso[2]-1) * zbin;
 
-                std::cout<<"x: "<<Location[0]<<"; y: "<<Location[1]<<"; z: "<<Location[2]<<std::endl;
+//                std::cout<<"x: "<<Location[0]<<"; y: "<<Location[1]<<"; z: "<<Location[2]<<std::endl;
 
                 // Fill displacement map
                 EMap.push_back(EInterpolateCGAL(En, Position,Mesh,Location,TPC));

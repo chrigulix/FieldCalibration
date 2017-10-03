@@ -52,6 +52,7 @@
 #include "include/Matrix3x3.hpp"
 #include "include/Laser.hpp"
 #include "include/Utilities.hpp"
+#include "include/DriftVelocity.hpp"
 
 // Initialize functions defined below
 
@@ -61,7 +62,7 @@ void WriteRootFile(std::vector<ThreeVector<float>>&, TPCVolumeHandler&, std::str
 void WriteTextFile(std::vector<ThreeVector<float>>&);
 void LaserInterpThread(Laser&, const Laser&, const Delaunay&);
 std::vector<Laser> ReachedExitPoint(const Laser&, float);
-std::vector<ThreeVector<float>> Elocal(TPCVolumeHandler&, const char * );
+std::vector<ThreeVector<float>> Elocal(TPCVolumeHandler&, float cryoTemp, float E0, float v0, const char * );
 std::vector<ThreeVector<float>> Eposition(TPCVolumeHandler&, const char * );
 void WriteEmapRoot(std::vector<ThreeVector<float>>& Efield, TPCVolumeHandler& TPCVolume, ThreeVector<unsigned long> Resolution, std::string);
 
@@ -182,6 +183,12 @@ int main(int argc, char** argv) {
 
     ThreeVector<unsigned long> EMapResolution = {21, 21, 81};
 
+    float cryoTemp = 89; // K
+    float E0 = 0.273; // kV/cm
+    float v0 = 1.11436; // mm/us, because of the fit of drift velocity as function of E field, while the LArSoft unit is cm/us
+
+//    std::cout<<"The drift velocity range in consideration is from "<< ElectronDriftVelocity(cryoTemp, 0)<<" to "<< ElectronDriftVelocity(cryoTemp, 2*E0)<<std::endl;
+
     std::stringstream ss_outfile;
     std::stringstream ss_Eoutfile;
     float float_max = std::numeric_limits<float>::max();
@@ -261,23 +268,17 @@ int main(int argc, char** argv) {
 
                     for(unsigned long track = 0; track < LaserSets1[set].GetTrackSet().size(); track++)
                     {
-                        std::cout<<"Laser1:::Set--"<<set<<"--Nsetp--"<<Nstep<<"--track--"<<track<<"--number--"<<LaserSets1[set].GetTrackSet()[track].GetNumberOfSamples()<<"||"<< std::difftime(std::time(NULL),timer) << " s"<<std::endl;
+                        std::cout<<"Laser1:::Set--"<<set<<"--Nsetp--"<<n<<"--track--"<<track<<"--number--"<<LaserSets1[set].GetTrackSet()[track].GetNumberOfSamples()<<"||"<< std::difftime(std::time(NULL),timer) << " s"<<std::endl;
                         // reserve the space for the correction vector for each track
-//                        std::vector<ThreeVector<float>> CorrPart1(LaserSets1[set].GetTrackSet()[track].GetNumberOfSamples(),ThreeVector<float>(float_max,float_max,float_max));
-                        std::vector<ThreeVector<float>> CorrPart1(LaserSets1[set].GetTrackSet()[track].GetNumberOfSamples(),ThreeVector<float>(0,0,0));
-//                        std::vector<ThreeVector<float>> CorrPart1;
-
-//                        std::cout<<"--C--"<< std::difftime(std::time(NULL),timer) << " s" <<std::endl;
+                        std::vector<ThreeVector<float>> CorrPart1(LaserSets1[set].GetTrackSet()[track].GetNumberOfSamples(),ThreeVector<float>(float_max,float_max,float_max));
+//                        std::vector<ThreeVector<float>> CorrPart1(LaserSets1[set].GetTrackSet()[track].GetNumberOfSamples(),ThreeVector<float>(0,0,0));
 
                         // Loop over data points (samples) of each track
                         for(unsigned long sample = 0; sample < LaserSets1[set].GetTrackSet()[track].GetNumberOfSamples(); sample++) {
-//                            CorrPart1[sample] = InterpolateCGAL(LaserSets2[set].GetTrackSet(), LaserSets2[set].GetTrackSet(), Mesh2, LaserSets1[set].GetTrackSet()[track].GetSamplePosition(sample));
                             CorrPart1[sample] = InterpolateCGAL(LaserSets2[set].GetTrackSet(), LaserSets2[set].GetTrackSet(), Mesh2, LaserSets1[set].GetTrackSet()[track].GetSamplePosition(sample));
                         }
 
-//                        std::cout<<"--D--"<< std::difftime(std::time(NULL),timer) << " s" <<std::endl;
                         LaserSets1[set].GetTrackSet()[track].AddCorrectionToRecoPart(CorrPart1);
-//                        std::cout<<"--E--"<< std::difftime(std::time(NULL),timer) << " s" <<std::endl;
                     }
                     std::cout<<"F"<< std::difftime(std::time(NULL),timer) << " s" <<std::endl;
 
@@ -285,8 +286,8 @@ int main(int argc, char** argv) {
                     {
                         std::cout<<"Laser2:::Set--"<<set<<"--Nsetp--"<<Nstep<<"--track--"<<track<<"--number--"<<LaserSets2[set].GetTrackSet()[track].GetNumberOfSamples()<<"||"<< std::difftime(std::time(NULL),timer) << " s"<<std::endl;
                         // reserve the space for the correction vector for each track
-//                        std::vector<ThreeVector<float>> CorrPart2(LaserSets2[set].GetTrackSet()[track].GetNumberOfSamples(),ThreeVector<float>(float_max,float_max,float_max));
-                        std::vector<ThreeVector<float>> CorrPart2(LaserSets2[set].GetTrackSet()[track].GetNumberOfSamples(),ThreeVector<float>(0,0,0));
+                        std::vector<ThreeVector<float>> CorrPart2(LaserSets2[set].GetTrackSet()[track].GetNumberOfSamples(),ThreeVector<float>(float_max,float_max,float_max));
+//                        std::vector<ThreeVector<float>> CorrPart2(LaserSets2[set].GetTrackSet()[track].GetNumberOfSamples(),ThreeVector<float>(0,0,0));
 
                         // Loop over data points (samples) of each track
                         for(unsigned long sample = 0; sample < LaserSets2[set].GetTrackSet()[track].GetNumberOfSamples(); sample++) {
@@ -388,7 +389,7 @@ int main(int argc, char** argv) {
     if(DoEmap){
         // The vector of Position and En must have the exactly the same index to make the interpolation (EInterpolateMap()) work
         std::vector<ThreeVector<float>> Position = Eposition(Detector, ss_outfile.str().c_str());
-        std::vector<ThreeVector<float>> En = Elocal(Detector, ss_outfile.str().c_str());
+        std::vector<ThreeVector<float>> En = Elocal(Detector, cryoTemp, E0, v0, ss_outfile.str().c_str());
 
         // Create mesh for Emap
         std::cout << "Generate mesh for E field..." << std::endl;
@@ -594,7 +595,7 @@ void LaserInterpThread(Laser& LaserTrackSet, const Laser& InterpolationLaser, co
 
 
 // The root file does not have to be the argument
-std::vector<ThreeVector<float>> Elocal(TPCVolumeHandler& TPCVolume, const char * root_name)
+std::vector<ThreeVector<float>> Elocal(TPCVolumeHandler& TPCVolume, float cryoTemp, float E0, float v0, const char * root_name)
 {
 //    TFile *InFile = new TFile("RecoCorrection.root","READ");
     TFile *InFile = new TFile(root_name,"READ");
@@ -606,10 +607,9 @@ std::vector<ThreeVector<float>> Elocal(TPCVolumeHandler& TPCVolume, const char *
     ThreeVector<unsigned long> Resolution = TPCVolume.GetDetectorResolution();
     ThreeVector<float> DetectorReso = {TPCVolume.GetDetectorSize()[0] / (Resolution[0]-1),TPCVolume.GetDetectorSize()[1]/(Resolution[1]-1),TPCVolume.GetDetectorSize()[2]/(Resolution[2]-1)};
     float Delta_x = DetectorReso[0]; //cm
-    float Ex = 273; // kV/cm
 
-    std::vector<ThreeVector< float>> En(TPCVolume.GetDetectorResolution()[2] * TPCVolume.GetDetectorResolution()[1] * (TPCVolume.GetDetectorResolution()[0]-1));
-
+//    std::vector<ThreeVector< float>> En(TPCVolume.GetDetectorResolution()[2] * TPCVolume.GetDetectorResolution()[1] * (TPCVolume.GetDetectorResolution()[0]-1));
+    std::vector<ThreeVector< float>> En;
 
     for(unsigned zbin = 0; zbin < TPCVolume.GetDetectorResolution()[2]; zbin++)
     {
@@ -630,10 +630,27 @@ std::vector<ThreeVector<float>> Elocal(TPCVolumeHandler& TPCVolume, const char *
                 ThreeVector<float> True_next = RecoGrid_next + Dxyz_next;
 
                 ThreeVector<float> Rn = True_next - True;
-                En[xbin+ybin*(Resolution[0]-1)+zbin*(Resolution[0]-1)*Resolution[1]] = Ex / Delta_x * Rn;
+                float vn = Rn.GetNorm() / Delta_x * v0; // mm/us, the magnitude of the drift velocity at the local point
+                //To be very careful that Rn.GetNorm() and Delta_x are in the unit of cm, not mm
+
+//                if(searchE(vn,cryoTemp,E0)>0.6){
+//                    std::cout<<"Need investigation! xbin: "<<xbin<<"; ybin: "<<ybin<<"; zbin: "<<zbin<<"; |Rn|: "<<Rn.GetNorm()<<"; |E|: "<<searchE(vn,cryoTemp,E0)<<std::endl;
+//                }
+
+                // the E field as a vector has the same direction of Rn (Threevector)
+                // can pass by the searchE(vn,cryoTemp,E0) to Position and omit the point at the same time
+                // the size doesn't matter for upstairs do the control here
+//                if(searchE(vn,cryoTemp,E0) < 0.5*std::numeric_limits<float>::max()){
+//                    En.push_back(searchE(vn,cryoTemp,E0) / Rn.GetNorm() * Rn);
+//                }
+
+                En[xbin+ybin*(Resolution[0]-1)+zbin*(Resolution[0]-1)*Resolution[1]] = searchE(vn,cryoTemp,E0) / Rn.GetNorm() * Rn;
+//                En[xbin+ybin*(Resolution[0]-1)+zbin*(Resolution[0]-1)*Resolution[1]] = Ex / Delta_x * Rn;
             }
         }
     }
+
+    std::cout<<En.size()<<std::endl;
     return En;
 }
 
@@ -670,6 +687,7 @@ std::vector<ThreeVector<float>> Eposition(TPCVolumeHandler& TPCVolume, const cha
                 ThreeVector<float> True_next = RecoGrid_next + Dxyz_next;
 
                 ThreeVector<float> Rn = True_next - True;
+//                float vn = Rn.GetNorm() / Delta_x * v0;
                 Position[xbin+ybin*(Resolution[0]-1)+zbin*(Resolution[0]-1)*Resolution[1]] = True + (float) 0.5 * Rn;
             }
         }
@@ -686,7 +704,6 @@ void WriteEmapRoot(std::vector<ThreeVector<float>>& Efield, TPCVolumeHandler& TP
     ThreeVector<float> MinimumCoord = TPCVolume.GetMapMinimum();
     ThreeVector<float> MaximumCoord = TPCVolume.GetMapMaximum();
     ThreeVector<float> Unit = {TPCVolume.GetDetectorSize()[0] / (Resolution[0]-1), TPCVolume.GetDetectorSize()[1] / (Resolution[1]-1), TPCVolume.GetDetectorSize()[2] / (Resolution[2]-1)};
-    ThreeVector<float> E0 = {273.0, 0.0, 0.0};
 
     // Initialize all TH3F
     std::vector<TH3F> Emap;
@@ -705,12 +722,7 @@ void WriteEmapRoot(std::vector<ThreeVector<float>>& Efield, TPCVolumeHandler& TP
                 for(unsigned coord = 0; coord < 3; coord++)
                 {
                     // Fill interpolated grid points into histograms. bin=0 is underflow, bin = nbin+1 is overflow
-                    if(xbin == 0){
-                        Emap[coord].SetBinContent(xbin+1,ybin+1,zbin+1, E0[coord]);
-                    }
-                    else{
-                        Emap[coord].SetBinContent(xbin+1,ybin+1,zbin+1, Efield[zbin+ybin*Resolution[2]+xbin*Resolution[2]*Resolution[1]][coord]);
-                    }
+                    Emap[coord].SetBinContent(xbin+1,ybin+1,zbin+1, Efield[zbin+ybin*Resolution[2]+xbin*Resolution[2]*Resolution[1]][coord]);
                 } // end coordinate loop
 //                std::cout<<"xbin: "<<xbin<<"; ybin: "<<ybin<<"; zbin: "<<zbin<<"---Ex: "<<Efield[zbin+ybin*Resolution[2]+xbin*Resolution[2]*Resolution[1]][0]<<"; Ey: "<<Efield[zbin+ybin*Resolution[2]+xbin*Resolution[2]*Resolution[1]][1]<<"; Ez: "<< Efield[zbin+ybin*Resolution[2]+xbin*Resolution[2]*Resolution[1]][2]<<std::endl;
             } // end zbin loop
