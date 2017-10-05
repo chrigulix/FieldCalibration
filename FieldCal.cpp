@@ -63,7 +63,7 @@ void WriteTextFile(std::vector<ThreeVector<float>>&);
 void LaserInterpThread(Laser&, const Laser&, const Delaunay&);
 std::vector<Laser> ReachedExitPoint(const Laser&, float);
 std::vector<ThreeVector<float>> Elocal(TPCVolumeHandler&, float cryoTemp, float E0, float v0, const char * );
-std::vector<ThreeVector<float>> Eposition(TPCVolumeHandler&, const char * );
+std::vector<ThreeVector<float>> Eposition(TPCVolumeHandler&, float cryoTemp, float E0, float v0, const char * );
 void WriteEmapRoot(std::vector<ThreeVector<float>>& Efield, TPCVolumeHandler& TPCVolume, ThreeVector<unsigned long> Resolution, std::string);
 
 // Set if the output displacement map is correction map (on reconstructed coordinate) or distortion map (on true coordinate)
@@ -388,7 +388,7 @@ int main(int argc, char** argv) {
     // The Emap calculation works when the input is correction map
     if(DoEmap){
         // The vector of Position and En must have the exactly the same index to make the interpolation (EInterpolateMap()) work
-        std::vector<ThreeVector<float>> Position = Eposition(Detector, ss_outfile.str().c_str());
+        std::vector<ThreeVector<float>> Position = Eposition(Detector, cryoTemp, E0, v0, ss_outfile.str().c_str());
         std::vector<ThreeVector<float>> En = Elocal(Detector, cryoTemp, E0, v0, ss_outfile.str().c_str());
 
         // Create mesh for Emap
@@ -638,23 +638,20 @@ std::vector<ThreeVector<float>> Elocal(TPCVolumeHandler& TPCVolume, float cryoTe
 //                }
 
                 // the E field as a vector has the same direction of Rn (Threevector)
-                // can pass by the searchE(vn,cryoTemp,E0) to Position and omit the point at the same time
-                // the size doesn't matter for upstairs do the control here
-//                if(searchE(vn,cryoTemp,E0) < 0.5*std::numeric_limits<float>::max()){
-//                    En.push_back(searchE(vn,cryoTemp,E0) / Rn.GetNorm() * Rn);
-//                }
+                if(searchE(vn,cryoTemp,E0) < 0.5*std::numeric_limits<float>::max()){
+                    En.push_back(searchE(vn,cryoTemp,E0) / Rn.GetNorm() * Rn);
+                }
 
-                En[xbin+ybin*(Resolution[0]-1)+zbin*(Resolution[0]-1)*Resolution[1]] = searchE(vn,cryoTemp,E0) / Rn.GetNorm() * Rn;
-//                En[xbin+ybin*(Resolution[0]-1)+zbin*(Resolution[0]-1)*Resolution[1]] = Ex / Delta_x * Rn;
+//                En[xbin+ybin*(Resolution[0]-1)+zbin*(Resolution[0]-1)*Resolution[1]] = searchE(vn,cryoTemp,E0) / Rn.GetNorm() * Rn;
             }
         }
     }
 
-    std::cout<<En.size()<<std::endl;
+    std::cout<<"En size: "<<En.size()<<std::endl;
     return En;
 }
 
-std::vector<ThreeVector<float>> Eposition(TPCVolumeHandler& TPCVolume, const char * root_name)
+std::vector<ThreeVector<float>> Eposition(TPCVolumeHandler& TPCVolume, float cryoTemp, float E0, float v0, const char * root_name)
 {
     ThreeVector<unsigned long> Resolution = TPCVolume.GetDetectorResolution();
     ThreeVector<float> DetectorReso = {TPCVolume.GetDetectorSize()[0] / (Resolution[0]-1),TPCVolume.GetDetectorSize()[1]/(Resolution[1]-1),TPCVolume.GetDetectorSize()[2]/(Resolution[2]-1)};
@@ -665,9 +662,10 @@ std::vector<ThreeVector<float>> Eposition(TPCVolumeHandler& TPCVolume, const cha
     TH3F *Dx = (TH3F*) InFile->Get("Reco_Displacement_X");
     TH3F *Dy = (TH3F*) InFile->Get("Reco_Displacement_Y");
     TH3F *Dz = (TH3F*) InFile->Get("Reco_Displacement_Z");
+    float Delta_x = DetectorReso[0]; //cm
 
-
-    std::vector<ThreeVector<float>> Position(Resolution[2]*Resolution[1]*(Resolution[0]-1));
+//    std::vector<ThreeVector<float>> Position(Resolution[2]*Resolution[1]*(Resolution[0]-1));
+    std::vector<ThreeVector<float>> Position;
 
     // the position should be consistent to the one in the EInterpolateMap()
     for(unsigned zbin = 0; zbin < Resolution[2]; zbin++)
@@ -687,11 +685,17 @@ std::vector<ThreeVector<float>> Eposition(TPCVolumeHandler& TPCVolume, const cha
                 ThreeVector<float> True_next = RecoGrid_next + Dxyz_next;
 
                 ThreeVector<float> Rn = True_next - True;
-//                float vn = Rn.GetNorm() / Delta_x * v0;
-                Position[xbin+ybin*(Resolution[0]-1)+zbin*(Resolution[0]-1)*Resolution[1]] = True + (float) 0.5 * Rn;
+
+                // To synchronize the vector order of En and Position through the output of searchE (if the output is floatmax, then abandon both elements in Position and En)
+                float vn = Rn.GetNorm() / Delta_x * v0;
+                if(searchE(vn,cryoTemp,E0) < 0.5*std::numeric_limits<float>::max()){
+                    Position.push_back(searchE(vn,cryoTemp,E0) / Rn.GetNorm() * Rn);
+                }
+//                Position[xbin+ybin*(Resolution[0]-1)+zbin*(Resolution[0]-1)*Resolution[1]] = True + (float) 0.5 * Rn;
             }
         }
     }
+    std::cout<<"Position size: "<<Position.size()<<std::endl;
     return Position;
 }
 
