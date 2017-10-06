@@ -243,10 +243,11 @@ ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet,
     else // if the matrix can't be inverted
     {
         // Set displacement zero and end function immediately!
-//        std::cout<<"The transition matrix for this D grid point is not invertable. "<<std::endl;
-        if(Map){InterpolatedDispl = {float_max,float_max,float_max};}
-        else{InterpolatedDispl = {0,0,0};}
-//        InterpolatedDispl = {0,0,0};
+    if (Map) {
+		InterpolatedDispl = {float_max,float_max,float_max};
+	} else {
+		InterpolatedDispl = {0,0,0};
+	}
         return InterpolatedDispl;
     }
     
@@ -256,8 +257,11 @@ ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet,
     {
         // Set displacement zero and end function immediately!
 //        std::cout<<"There is negative barycentric coordinate at this D grid point! "<<std::endl;
-        if(Map){InterpolatedDispl = {float_max,float_max,float_max};}
-        else{InterpolatedDispl = {0,0,0};}
+	if (Map) {
+		 InterpolatedDispl = {float_max,float_max,float_max};
+	} else {
+		InterpolatedDispl = {0,0,0};
+	}
 //        InterpolatedDispl = {0,0,0};
         return InterpolatedDispl;
     }
@@ -387,6 +391,7 @@ std::vector<ThreeVector<float>> InterpolateMap(const std::vector<LaserTrack>& La
     
     // Initialize temporary location vector
     ThreeVector<float> Location;
+    
     // Define the bin size of TPC volume
     ThreeVector<float> Unit = {TPC.GetDetectorSize()[0]/static_cast<float>(TPC.GetDetectorResolution()[0]-1), TPC.GetDetectorSize()[1]/static_cast<float>(TPC.GetDetectorResolution()[1]-1),TPC.GetDetectorSize()[2]/static_cast<float>(TPC.GetDetectorResolution()[2]-1)};
 

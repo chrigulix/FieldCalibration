@@ -44,6 +44,11 @@
 #include "TTreeReader.h"
 #include "TTreeReaderValue.h"
 
+#ifdef _OPENMP
+#include "omp.h"
+
+#endif
+
 // Own Files
 #include "include/LaserTrack.hpp"
 #include "include/ThreeVector.hpp"
@@ -81,6 +86,7 @@ int main(int argc, char** argv) {
 
     // specify the amount of downsampling
     unsigned int n_split = 1;
+    unsigned int n_threads = 1;
     // Specify the number of steps for correction
     unsigned int Nstep = 1;
 
@@ -89,16 +95,21 @@ int main(int argc, char** argv) {
     {
         std::cerr << "ERROR: Too few arguments, use ./LaserCal <options> <input file names>" << std::endl;
         std::cerr << "options:  -d INTEGER  : Number of downsampling of the input dataset, default 1." << std::endl;
+        std::cerr << "          -j INTEGER  : Number of threads to use, default 1" << std::endl;
+
         return -1;
     }
     // Lets handle all options
     int c;
-    while((c = getopt(argc, argv, ":d:N:CDE")) != -1){
+    while((c = getopt(argc, argv, ":d:jN:CDE")) != -1){
         switch(c){
             case 'd':
                 n_split = atoi(optarg);
                 break;
-            case 'N':
+            case 'j':
+                n_threads = atoi(optarg);
+            	break;
+	    case 'N':
                 Nstep = atoi(optarg);
                 break;
             case 'C':
@@ -110,24 +121,11 @@ int main(int argc, char** argv) {
             case 'E':
                 DoEmap = true;
                 break;
-            // put in your case here. also add it to the while loop as an option or as required argument
+                // put in your case here. also add it to the while loop as an option or as required argument
         }
     }
 
-
-//    // Now handle input files
-//    std::vector<std::string> InputFiles;
-//    unsigned int n_files = 0;
-//    for (int i = optind; i < argc; i++) {
-//        std::string filename(argv[i]);
-//        // check if file exists
-//        std::ifstream f(filename.c_str());
-//        if (!f.good()) {
-//            throw std::runtime_error(std::string("file does not exist: ") + filename);
-//        }
-//        InputFiles.push_back(filename);
-//    }
-
+    omp_set_num_threads(n_threads);
 
     // Now handle input files
     std::vector<std::string> InputFiles1;
@@ -135,7 +133,8 @@ int main(int argc, char** argv) {
     unsigned int n_files = 0;
     for (int i = optind; i < argc; i++) {
         std::string filename (argv[i]);
-        // check if file exists
+        
+	// check if file exists
         std::ifstream f(filename.c_str());
         if (!f.good()) {
             throw std::runtime_error(std::string("file does not exist: ") + filename);
@@ -194,16 +193,6 @@ int main(int argc, char** argv) {
     float float_max = std::numeric_limits<float>::max();
     ThreeVector<float > Empty = {float_max,float_max,float_max};
 
-//    // Set the name for Dmap
-//    if (CorrMapFlag) {
-//        ss_outfile << "RecoCorrection-N" << Nstep << "-S" << n_split << ".root";
-//    }
-//    if (!CorrMapFlag) {
-//        ss_outfile << "TrueDistortion-N" << Nstep << "-S" << n_split << ".root";
-//    }
-//
-//    ss_Eoutfile << "Emap-N" << Nstep << "-S" << n_split <<".root";
-
     ss_outfile << "RecoCorr-Simu.root";
     ss_Eoutfile << "Emap-Simu.root";
   
@@ -216,7 +205,8 @@ int main(int argc, char** argv) {
 
         // Read data and store it to a Laser object
         std::cout << "Reading data..." << std::endl;
-//        Laser FullTracks = ReadRecoTracks(InputFiles);
+
+//      Laser FullTracks = ReadRecoTracks(InputFiles);
         Laser FullTracks1 = ReadRecoTracks(InputFiles1);
         Laser FullTracks2 = ReadRecoTracks(InputFiles2);
 
@@ -231,11 +221,13 @@ int main(int argc, char** argv) {
 
         // Now we loop over each individual set and compute the displacement vectors.
         // TODO: This could be parallelized
+
+#pragma omp parallel for
         for (unsigned int set = 0; set < n_split; set++) {
-            std::cout << "Processing subset " << set << " ... " << std::endl;
+            std::cout << "Processing subset " << set << "/" << n_split << "... " << std::endl;
 
             // Calculate track displacement
-            std::cout << "Find track displacements... " << std::endl;
+            std::cout << " [" << set << "] Find track displacements... " << std::endl;
 
             ////////////////////////////////////////////
 
@@ -321,8 +313,9 @@ int main(int argc, char** argv) {
 //            }
 
             // Create delaunay mesh
-            std::cout << "Generate mesh..." << std::endl;
-            Delaunay MeshMap1;
+            std::cout << " [" << set << "] Generate mesh..." << std::endl;
+            
+	    Delaunay MeshMap1;
             Delaunay MeshMap2;
 
             std::cout << "Time after mesh "<< std::difftime(std::time(NULL),timer) << " s" << std::endl;
@@ -410,6 +403,34 @@ int main(int argc, char** argv) {
 
 } // end main
 
+// To check if the input root files contain the laser data from two laser system (two side)
+//bool Twolasersys(int argc, char** argv)
+//{
+//    if(argc != 3){
+//        std::cerr << "ERROR: Not right arguments. Please use ./FieldCal <name_LCS1.root> <name_LCS2.root>" << std::endl;
+//        return false; //0
+//    }
+//    if(argc == 3){
+//        int LCS1,LCS2;
+//        TChain* tree1 = new TChain("laser1");
+//        tree1->Add(argv[1]);
+//        tree1->SetBranchAddress("LCS1",&LCS1);
+//        TH1F* h1;
+//        tree1->Draw("LCS1>>h1","");
+//        LCS1 = h1->GetMean();
+//
+//        TChain* tree2 = new TChain("laser2");
+//        tree2->Add(argv[2]);
+//        tree2->SetBranchAddress("LCS2",&LCS2);
+//        TH1F* h2;
+//        tree2->Draw("LCS1>>h2","");
+//        LCS2 = h2->GetMean();
+//
+//        // A rough check here. Risk that one single input root file has mixed data from two laser system
+//        if((LCS1-1.5)*(LCS2-1.5)<0){ return true; }
+//        else{return false;}
+//    }
+//}
 
 Laser ReadRecoTracks(std::vector<std::string> InputFiles)
 {
@@ -419,8 +440,10 @@ Laser ReadRecoTracks(std::vector<std::string> InputFiles)
     // Initialize read variables, the pointers for more complex data structures 
     // are very important for Root. Rene Brun in hell (do you see what I did there?)
     int EventNumber;
+    
     std::vector<TVector3> TrackSamples;
     std::vector<TVector3>* pTrackSamples = &TrackSamples;
+    
     TVector3 EntryPoint;
     TVector3* pEntryPoint = &EntryPoint;
     TVector3 ExitPoint;
@@ -656,7 +679,7 @@ std::vector<ThreeVector<float>> Eposition(TPCVolumeHandler& TPCVolume, float cry
     ThreeVector<unsigned long> Resolution = TPCVolume.GetDetectorResolution();
     ThreeVector<float> DetectorReso = {TPCVolume.GetDetectorSize()[0] / (Resolution[0]-1),TPCVolume.GetDetectorSize()[1]/(Resolution[1]-1),TPCVolume.GetDetectorSize()[2]/(Resolution[2]-1)};
 
-    std::cout<<"name: "<<root_name<<std::endl;
+    std::cout<< "name: " << root_name << std::endl;
     TFile *InFile = new TFile(root_name,"READ");
 
     TH3F *Dx = (TH3F*) InFile->Get("Reco_Displacement_X");
