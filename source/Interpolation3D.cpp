@@ -1,5 +1,6 @@
 #include "../include/Interpolation3D.hpp"
 #include "../include/Laser.hpp"
+#include "../include/ThreeVector.hpp"
 
 std::vector<std::pair<unsigned,float>> GetClosestTracksInfo(std::vector<LaserTrack>& LaserTrackSet, const unsigned NumberOfClosestTracks)
 {
@@ -118,7 +119,9 @@ Delaunay TrackMesher(const std::vector<LaserTrack>& LaserTrackSet)
         for(unsigned long sample = 0; sample < LaserTrackSet[track].GetNumberOfSamples(); sample++)
         {
             // Convert ThreeVector<float> of sample position to CGAL point
-            Point SamplePoint = Point(LaserTrackSet[track].GetSamplePosition(sample)[0],LaserTrackSet[track].GetSamplePosition(sample)[1],LaserTrackSet[track].GetSamplePosition(sample)[2]);
+            Point SamplePoint = Point(LaserTrackSet[track].GetSamplePosition(sample)[0],
+                                      LaserTrackSet[track].GetSamplePosition(sample)[1],
+                                      LaserTrackSet[track].GetSamplePosition(sample)[2]);
             
             // Prepare point info (pair with track number and track sample number)
             std::pair<unsigned long, unsigned long> SamplePointIndex = std::make_pair(track,sample);
@@ -135,6 +138,33 @@ Delaunay TrackMesher(const std::vector<LaserTrack>& LaserTrackSet)
     return DelaunayMesh;
 }
 
+//Attention! the typedef of EMAP related Delaunay template is with x in front
+xDelaunay Mesher(std::vector<ThreeVector<float>>& Position, TPCVolumeHandler& TPC)
+{
+    // Create a vector with a std::pair< Point, PointInfo (also a pair) > this is the input format for the Delaunay constructor
+    std::vector< std::pair<Point,int> > Points;
+
+    // Loop over the size of grid
+    for(int n = 0; n < Position.size(); n++)
+    {
+        // Convert ThreeVector<float> of sample position to CGAL point
+        xPoint SamplePoint = xPoint(Position[n][0], Position[n][1], Position[n][2]);
+
+        // Prepare point info is index of the mesh points
+        int SamplePointIndex = n;
+
+        // Fill Delaunay input container with point and point info
+        Points.push_back(std::make_pair(SamplePoint, SamplePointIndex));
+
+    }
+
+    // Create Delaunay mesh (this takes quite some runtime!)
+    xDelaunay DelaunayMesh(Points.begin(), Points.end());
+
+    // Return mesh
+    return DelaunayMesh;
+}
+
 ThreeVector<float> PointToVector(Point& InputPoint)
 {
   ThreeVector<float> vec_res = {(float)InputPoint[0], (float)InputPoint[1], (float)InputPoint[2]};
@@ -145,6 +175,13 @@ Point VectorToPoint(ThreeVector<float>& InputVector)
 {
   Point point_res(InputVector[0],InputVector[1],InputVector[2]);
   return point_res;
+}
+
+//////////Is this necessary?
+xPoint xVectorToPoint(ThreeVector<float>& InputVector)
+{
+    xPoint point_res(InputVector[0],InputVector[1],InputVector[2]);
+    return point_res;
 }
 
 // This function Interpolates the displacement of Location within the Mesh
@@ -163,12 +200,12 @@ ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet,
     // Initialize a displacement vector with zero
     ThreeVector<float> InterpolatedDispl = {0.0,0.0,0.0};
     
-    // Initialize Barycentry coordinate system (it will have 4 dimensions)
+    // Initialize Barycentric coordinate system (it will have 4 dimensions)
     std::vector<float> BaryCoord;
     
     // Find cell in the mesh where the point is located
     Delaunay::Cell_handle Cell =  Mesh.locate(VectorToPoint(Location));
-  
+
     // Loop over all four vertex points of the cell of interest
     for(unsigned vertex_no = 0; vertex_no < PointIndex.size(); vertex_no++)
     {
@@ -197,7 +234,8 @@ ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet,
     if(TransMatrix.Invert())
     {
         // Use inverted matrix to fill the first three coordinates
-        BaryCoord = (TransMatrix * Location).GetStdVector();
+        ThreeVector<float> BC = TransMatrix * Location;
+        BaryCoord = BC.GetStdVector();
     
         // The sum of all barycentric coordinates has to be 1 by definition, use this to calculate the 4th coordinate
         BaryCoord.push_back(1-BaryCoord[0]-BaryCoord[1]-BaryCoord[2]);
@@ -205,10 +243,9 @@ ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet,
     else // if the matrix can't be inverted
     {
         // Set displacement zero and end function immediately!
-        if (Map) {
+    if (Map) {
 		InterpolatedDispl = {float_max,float_max,float_max};
-	}
-	else {
+	} else {
 		InterpolatedDispl = {0,0,0};
 	}
         return InterpolatedDispl;
@@ -220,10 +257,9 @@ ThreeVector<float> InterpolateCGAL(const std::vector<LaserTrack>& LaserTrackSet,
     {
         // Set displacement zero and end function immediately!
 //        std::cout<<"There is negative barycentric coordinate at this D grid point! "<<std::endl;
-        if (Map) {
+	if (Map) {
 		 InterpolatedDispl = {float_max,float_max,float_max};
-	}
-        else {
+	} else {
 		InterpolatedDispl = {0,0,0};
 	}
 //        InterpolatedDispl = {0,0,0};
@@ -368,7 +404,7 @@ std::vector<ThreeVector<float>> InterpolateMap(const std::vector<LaserTrack>& La
     // Loop over all xbins of the TPC
     for(unsigned xbin = 0 - Extension; xbin < TPC.GetDetectorResolution()[0] + Extension; xbin++)
     {
-        std::cout << "Processing plane " << xbin << " of " << TPC.GetDetectorResolution()[0] - 1 << std::endl;
+        std::cout << "Processing plane " << xbin << " of " << TPC.GetDetectorResolution()[0]  << std::endl;
         // Calculate Grid point x-coordinate
         Location[0] = TPC.GetDetectorOffset()[0] + Unit[0] * xbin;
     

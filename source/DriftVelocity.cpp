@@ -4,6 +4,7 @@
 #include <sstream>
 #include <iostream>
 #include "../include/DriftVelocity.hpp"
+#include <limits>
 #include <cmath>
 
 //T in K, E in kV/cm, Drift velocity in mm/us
