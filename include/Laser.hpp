@@ -43,8 +43,9 @@ public:
   std::vector<LaserTrack> GetTrackSet() const;
   
   void DistortTrackSet(std::string, TPCVolumeHandler&);
-  void CalcDisplacement(const LaserTrack::DisplacementAlgo& Algo);
-  void AddCorrectionToReco();
+  void CalcDisplacement(const LaserTrack::DisplacementAlgo& Algo, int Nstep);
+  void AddCorrectionToReco(bool plus);
+  void SetDisplacement(Laser LaserReco, bool Corr);
   void InterpolateTrackSet(const std::vector<LaserTrack>& ,const Delaunay&);
   void InterpolateTrackSet(const Laser& ,const Delaunay&);
   

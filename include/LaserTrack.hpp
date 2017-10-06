@@ -32,13 +32,13 @@ private:
 //   std::vector<ThreeVector<float>> LaserTrue;
   std::vector<ThreeVector<float>> LaserReco;
   std::vector<ThreeVector<float>> LaserDisplacement;
-  
+
   void FillTrack();
   void FindBoundaries(const TPCVolumeHandler&);
-  
+
   // Displacement algorithms
   void DerivativeDisplAlgo();
-  void ClosestPointDisplAlgo(bool CorrMapFlag);
+  void ClosestPointDisplAlgo(bool CorrMapFlag, int Nstep);
   void LinearStretchDisplAlgo(bool CorrMapFlag);
 
   bool CorrMapFlag;//For ClosestPointDisplAlgo
@@ -63,8 +63,11 @@ public:
   
   ThreeVector<float> GetPoyntingVector();
   void DistortTrack(std::string, const TPCVolumeHandler&);
-  void CalcDisplacement(const DisplacementAlgo& Algo);
-  void AddCorrectionToReco();
+  void CalcDisplacement(const DisplacementAlgo& Algo, int Nstep);
+  void AddCorrectionToRecoP();
+  void AddCorrectionToRecoM();
+  void AddCorrectionToRecoPart(std::vector<ThreeVector<float>> CorrPart);
+  void Displacement(LaserTrack LaserTrackReco, bool Corr);
   void AddToDisplacement(ThreeVector<float>&, unsigned long);
   
   ThreeVector<float> GetLaserPosition();
