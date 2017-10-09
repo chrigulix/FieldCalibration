@@ -46,7 +46,6 @@
 
 #ifdef _OPENMP
 #include "omp.h"
-
 #endif
 
 // Own Files
@@ -124,8 +123,9 @@ int main(int argc, char** argv) {
                 // put in your case here. also add it to the while loop as an option or as required argument
         }
     }
-
+#ifdef _OPENMP
     omp_set_num_threads(n_threads);
+#endif
 
     // Now handle input files
     std::vector<std::string> InputFiles1;
